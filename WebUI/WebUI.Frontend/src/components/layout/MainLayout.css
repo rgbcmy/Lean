@@ -1,0 +1,52 @@
+/**
+ * Main Layout Styles
+ * 主布局样式
+ */
+
+.main-layout {
+  min-height: 100vh;
+}
+
+.site-layout {
+  background: #f0f2f5;
+}
+
+.site-content {
+  margin: 24px 16px;
+  padding: 24px;
+  background: #fff;
+  min-height: calc(100vh - 112px);
+  border-radius: 8px;
+}
+
+.content-wrapper {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Dark theme support */
+.dark-theme .site-layout {
+  background: #141414;
+}
+
+.dark-theme .site-content {
+  background: #1f1f1f;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .site-content {
+    margin: 16px 8px;
+    padding: 16px;
+    min-height: calc(100vh - 96px);
+  }
+}
+
+/* Tablet responsiveness */
+@media (min-width: 768px) and (max-width: 1280px) {
+  .site-content {
+    margin: 20px 12px;
+    padding: 20px;
+  }
+}

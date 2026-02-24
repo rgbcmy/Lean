@@ -281,3 +281,13 @@ Research/Notebooks
 #Docker result files
 Results/
 QuantConnect.Lean.sln.DotSettings
+
+# WebUI specific
+WebUI/WebUI.Frontend/dist/
+WebUI/WebUI.Frontend/dist-ssr/
+WebUI/WebUI.Frontend/.vite/
+WebUI/**/appsettings.Development.json
+WebUI/**/webui-config.json
+*.db
+*.db-shm
+*.db-wal

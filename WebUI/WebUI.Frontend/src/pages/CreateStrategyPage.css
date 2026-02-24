@@ -1,0 +1,78 @@
+/**
+ * Create Strategy Page Styles
+ * 新建策略页面样式
+ */
+
+.create-strategy-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  margin: 0;
+}
+
+/* Form styles */
+.create-strategy-page .ant-form-item {
+  margin-bottom: 24px;
+}
+
+.create-strategy-page .ant-select-selection-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Upload area */
+.create-strategy-page .ant-upload {
+  width: 100%;
+}
+
+/* Code editor textarea */
+.create-strategy-page textarea[style*="monospace"] {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Alert boxes */
+.create-strategy-page .ant-alert {
+  border-radius: 4px;
+}
+
+/* Steps */
+.create-strategy-page .ant-steps {
+  padding: 0 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .create-strategy-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .create-strategy-page .ant-steps {
+    padding: 0;
+  }
+
+  .create-strategy-page .ant-steps-item-description {
+    display: none;
+  }
+}
+
+/* Template option styles */
+.create-strategy-page .ant-select-item-option-content {
+  padding: 4px 0;
+}
+
+/* Button spacing */
+.create-strategy-page .ant-space {
+  flex-wrap: wrap;
+}

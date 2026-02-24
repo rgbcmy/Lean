@@ -1,0 +1,68 @@
+/**
+ * Order Form Styles
+ * 下单表单样式
+ */
+
+.order-form {
+  max-width: 600px;
+}
+
+.order-form-content {
+  margin-top: 16px;
+}
+
+.order-form .buy-button {
+  color: #52c41a;
+  border-color: #52c41a;
+}
+
+.order-form .buy-button.ant-radio-button-wrapper-checked {
+  background: #52c41a;
+  border-color: #52c41a;
+  color: #fff;
+}
+
+.order-form .sell-button {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.order-form .sell-button.ant-radio-button-wrapper-checked {
+  background: #ff4d4f;
+  border-color: #ff4d4f;
+  color: #fff;
+}
+
+.price-reference {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-confirmation {
+  padding-top: 16px;
+}
+
+/* Dark theme */
+.dark-theme .price-reference {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .order-form {
+    max-width: 100%;
+  }
+
+  .order-confirmation .ant-statistic-title {
+    font-size: 12px;
+  }
+
+  .order-confirmation .ant-statistic-content {
+    font-size: 16px !important;
+  }
+}

@@ -2,6 +2,15 @@
 
 > 为 Lean 引擎添加 Web 管理界面
 
+> **📖 完整文档**: 本文档是快速启动指南。如需完整的开发指南(架构设计、最佳实践、测试、部署等),请参阅 **[WebUI开发者完整指南.md](./WebUI开发者完整指南.md)**
+
+**相关文档**:
+- **[WebUI开发者完整指南.md](./WebUI开发者完整指南.md)** ⭐ 完整开发文档
+- [WebUI用户指南.md](./WebUI用户指南.md) - 用户安装和使用指南  
+- [IBKR-Configuration-Guide.md](./IBKR-Configuration-Guide.md) - IBKR 配置教程
+- [Database-Configuration-Guide.md](./Database-Configuration-Guide.md) - 数据库配置教程
+- [Docker-Deployment-Guide.md](./Docker-Deployment-Guide.md) - Docker 部署教程
+
 ---
 
 ## 📋 项目结构

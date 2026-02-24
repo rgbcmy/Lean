@@ -1,0 +1,23 @@
+.risk-config-page {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.risk-config-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.risk-config-page .ant-card {
+  margin-bottom: 16px;
+}
+
+.risk-config-page .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.risk-config-page .ant-tabs-content {
+  padding-top: 16px;
+}

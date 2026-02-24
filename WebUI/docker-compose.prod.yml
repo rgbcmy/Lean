@@ -1,0 +1,207 @@
+version: '3.8'
+
+# Production Docker Compose Configuration for Lean WebUI
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: lean-webui-db
+    environment:
+      POSTGRES_USER: leanuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: leanwebui
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - lean-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leanuser -d leanwebui"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # WebUI Backend API
+  webui-api:
+    build:
+      context: ..
+      dockerfile: WebUI/Dockerfile
+      args:
+        - BUILD_CONFIGURATION=Release
+    container_name: lean-webui-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=https://+:5001;http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=leanwebui;Username=leanuser;Password=${POSTGRES_PASSWORD}
+      - WebUI__DatabaseProvider=PostgreSQL
+      - WebUI__JwtSecret=${JWT_SECRET}
+      - WebUI__JwtIssuer=LeanWebUI
+      - WebUI__JwtAudience=LeanWebUIClient
+      - WebUI__ServeStaticFiles=false
+      - IBKR__TWSHost=${IBKR_TWS_HOST:-127.0.0.1}
+      - IBKR__TWSPort=${IBKR_TWS_PORT:-7496}
+      - IBKR__ClientId=${IBKR_CLIENT_ID:-1}
+      - Kestrel__Certificates__Default__Path=/app/certs/leanwebui.pfx
+      - Kestrel__Certificates__Default__Password=${CERT_PASSWORD}
+      - Serilog__WriteTo__1__Args__serverUrl=http://seq:5341
+      - Monitoring__EnablePrometheus=true
+    volumes:
+      - lean-data:/app/data
+      - lean-logs:/app/logs
+      - ./certs:/app/certs:ro
+    networks:
+      - lean-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: lean-webui-nginx
+    depends_on:
+      - webui-api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./WebUI.Frontend/dist:/usr/share/nginx/html:ro
+      - ./certs:/etc/nginx/certs:ro
+      - nginx-logs:/var/log/nginx
+    networks:
+      - lean-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # Seq - Centralized Logging
+  seq:
+    image: datalust/seq:latest
+    container_name: lean-webui-seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_API_CANONICALURI=http://seq:5341
+    ports:
+      - "5341:80"
+    volumes:
+      - seq-data:/data
+    networks:
+      - lean-network
+    restart: unless-stopped
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lean-webui-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - lean-network
+    restart: unless-stopped
+
+  # Grafana - Metrics Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lean-webui-grafana
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./configs/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./configs/grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - lean-network
+    restart: unless-stopped
+
+  # Database Backup Service
+  db-backup:
+    image: postgres:16-alpine
+    container_name: lean-webui-backup
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=leanwebui
+      - POSTGRES_USER=leanuser
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache dcron
+        echo "$${BACKUP_SCHEDULE} /backup-db.sh >> /var/log/backup.log 2>&1" | crontab -
+        crond -f -l 2
+    networks:
+      - lean-network
+    restart: unless-stopped
+
+networks:
+  lean-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  lean-data:
+    driver: local
+  lean-logs:
+    driver: local
+  nginx-logs:
+    driver: local
+  seq-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

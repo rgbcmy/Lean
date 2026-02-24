@@ -1,0 +1,42 @@
+/**
+ * Positions Page Styles
+ * 持仓页面样式
+ */
+
+.positions-page {
+  padding: 24px;
+}
+
+.positions-page .ant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.positions-page .ant-statistic-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.positions-page .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.positions-page .ant-table-thead > tr > th {
+  font-weight: 600;
+  background-color: #fafafa;
+}
+
+.positions-page .ant-btn-link {
+  font-weight: 500;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .positions-page {
+    padding: 16px;
+  }
+
+  .positions-page .ant-statistic-content {
+    font-size: 20px;
+  }
+}

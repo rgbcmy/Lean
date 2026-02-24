@@ -1,0 +1,35 @@
+# Prometheus Configuration for Lean WebUI
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'lean-webui-monitor'
+
+# Scrape configurations
+scrape_configs:
+  # WebUI API metrics
+  - job_name: 'webui-api'
+    static_configs:
+      - targets: ['webui-api:5000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # PostgreSQL exporter (optional - requires postgres_exporter container)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Node exporter (optional - for host metrics)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+
+# Alerting rules (optional)
+# rule_files:
+#   - '/etc/prometheus/alerts.yml'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']

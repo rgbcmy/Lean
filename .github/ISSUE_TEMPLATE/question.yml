@@ -1,0 +1,49 @@
+name: ❓ Question
+description: Ask a question about Lean WebUI
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got a question? We're here to help! Please provide as much detail as possible.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: How do I...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to achieve?
+      placeholder: I'm trying to...
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What I've Tried
+      description: What have you already tried?
+      placeholder: I've tried...
+
+  - type: dropdown
+    id: checked_docs
+    attributes:
+      label: Documentation Checked
+      description: Have you checked the documentation?
+      options:
+        - "Yes, I've checked the docs"
+        - "No, not yet"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any other relevant information

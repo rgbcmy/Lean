@@ -1,0 +1,134 @@
+/**
+ * Stock Trading Page Styles
+ * 股票交易页面样式
+ */
+
+.stock-trading-page {
+  padding: 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.search-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.quote-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+
+.quote-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.stock-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quote-stats {
+  margin-bottom: 24px;
+}
+
+.quote-details {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
+.quote-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quote-details > div > div {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.delayed-notice {
+  margin-top: 16px;
+  padding: 8px 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 4px;
+  color: #d46b08;
+  font-size: 12px;
+}
+
+.order-card {
+  border-radius: 8px;
+}
+
+.empty-state {
+  border-radius: 8px;
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Dark theme */
+.dark-theme .quote-header {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .quote-details {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark-theme .delayed-notice {
+  background: rgba(250, 173, 20, 0.1);
+  border-color: rgba(250, 173, 20, 0.3);
+  color: #faad14;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .quote-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .quote-stats .ant-statistic-title {
+    font-size: 12px;
+  }
+
+  .quote-stats .ant-statistic-content {
+    font-size: 20px !important;
+  }
+
+  .quote-details {
+    padding: 12px;
+  }
+
+  .quote-details > div > div {
+    font-size: 14px;
+  }
+}

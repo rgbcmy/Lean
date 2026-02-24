@@ -1,0 +1,108 @@
+/**
+ * Help Page Styles
+ * 帮助中心页面样式
+ */
+
+.help-page {
+  padding: 0;
+}
+
+.help-header {
+  margin-bottom: 24px;
+}
+
+.quick-links-card,
+.faqs-card,
+.contact-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.quick-link-card {
+  text-align: center;
+  border-radius: 8px;
+  height: 100%;
+  transition: all 0.3s;
+}
+
+.quick-link-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.quick-link-icon {
+  font-size: 32px;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+.faqs-collapse {
+  background: transparent;
+}
+
+.faqs-collapse .ant-collapse-item {
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0;
+}
+
+.faqs-collapse .ant-collapse-header {
+  padding: 16px 0 !important;
+}
+
+.faqs-collapse .ant-collapse-content {
+  background: transparent;
+}
+
+.faq-answer {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.faq-answer ul {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.faq-answer li {
+  margin-bottom: 8px;
+}
+
+/* Dark theme */
+.dark-theme .quick-links-card,
+.dark-theme .faqs-card,
+.dark-theme .contact-card {
+  background: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark-theme .quick-link-card {
+  background: #262626;
+  border-color: #434343;
+}
+
+.dark-theme .quick-link-card:hover {
+  background: #303030;
+  border-color: #595959;
+}
+
+.dark-theme .faqs-collapse .ant-collapse-item {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .faq-answer {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .quick-link-icon {
+    font-size: 24px;
+  }
+
+  .faqs-collapse .ant-collapse-header {
+    padding: 12px 0 !important;
+  }
+
+  .faq-answer {
+    font-size: 14px;
+  }
+}

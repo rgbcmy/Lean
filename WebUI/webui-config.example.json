@@ -1,0 +1,47 @@
+{
+  "WebUI": {
+    "DatabaseProvider": "SQLite",
+    "JwtSecret": "your-super-secret-jwt-key-at-least-32-characters-long-change-in-production",
+    "JwtIssuer": "LeanWebUI",
+    "JwtAudience": "LeanWebUIClient",
+    "JwtExpirationMinutes": 60,
+    "RefreshTokenExpirationDays": 7,
+    "MaxLoginAttempts": 5,
+    "LockoutDurationMinutes": 30
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=webui.db",
+    "PostgreSQL": "Host=localhost;Database=leanwebui;Username=leanuser;Password=changeme"
+  },
+  "IBKR": {
+    "TWSHost": "127.0.0.1",
+    "TWSPort": 4002,
+    "PaperTradingPort": 4002,
+    "LiveTradingPort": 4001,
+    "ClientId": 1,
+    "ReconnectIntervalSeconds": 10,
+    "ConnectionTimeoutSeconds": 30
+  },
+  "SignalR": {
+    "KeepAliveIntervalSeconds": 15,
+    "ClientTimeoutSeconds": 30,
+    "HandshakeTimeoutSeconds": 15
+  },
+  "RateLimit": {
+    "RequestsPerMinute": 60,
+    "BurstSize": 10
+  },
+  "Logging": {
+    "MinimumLevel": "Information",
+    "EnableFileLogging": true,
+    "LogFilePath": "logs/webui-.log",
+    "RollingInterval": "Day",
+    "RetainedFileCountLimit": 30
+  },
+  "CORS": {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+/**
+ * Header Styles
+ * 头部导航栏样式
+ */
+
+.site-header {
+  background: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  height: 64px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0; /* Allow flex child to shrink */
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.trigger {
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.3s;
+  margin-right: 16px;
+}
+
+.trigger:hover {
+  color: #1890ff;
+}
+
+.ibkr-status-btn {
+  height: auto;
+  padding: 4px 12px;
+}
+
+.ibkr-status-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.notification-btn {
+  font-size: 18px;
+}
+
+.user-menu {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.user-menu:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.username {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dark theme support */
+.dark-theme .site-header {
+  background: #1f1f1f;
+  border-bottom: 1px solid #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .trigger:hover {
+  color: #1890ff;
+}
+
+.dark-theme .user-menu:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark-theme .ibkr-status-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .site-header {
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  .trigger {
+    margin-right: 8px;
+    font-size: 16px;
+  }
+
+  .username {
+    display: none;
+  }
+
+  .header-right .ant-space {
+    gap: 8px !important;
+  }
+}
+
+/* Tablet responsive */
+@media (min-width: 768px) and (max-width: 1280px) {
+  .site-header {
+    padding: 0 16px;
+  }
+
+  .username {
+    max-width: 100px;
+  }
+}
+
+/* Badge styling */
+.ant-badge-count {
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.dark-theme .ant-badge-count {
+  box-shadow: 0 0 0 1px #1f1f1f;
+}

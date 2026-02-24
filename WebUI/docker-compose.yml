@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Production)
+  postgres:
+    image: postgres:16-alpine
+    container_name: lean-webui-db
+    environment:
+      POSTGRES_USER: leanuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_DB: leanwebui
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - lean-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leanuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # WebUI Application
+  webui:
+    build:
+      context: ..
+      dockerfile: WebUI/Dockerfile
+    container_name: lean-webui
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=leanwebui;Username=leanuser;Password=${POSTGRES_PASSWORD:-changeme123}
+      - WebUI__DatabaseProvider=PostgreSQL
+      - WebUI__JwtSecret=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - WebUI__JwtIssuer=LeanWebUI
+      - WebUI__JwtAudience=LeanWebUIClient
+    ports:
+      - "5000:5000"
+    networks:
+      - lean-network
+    volumes:
+      - lean-data:/app/data
+      - lean-logs:/app/logs
+    restart: unless-stopped
+
+  # IBKR TWS Gateway (Optional - for paper/live trading)
+  # Uncomment if you want to run IBKR Gateway in Docker
+  # ibkr-gateway:
+  #   image: ghcr.io/gnzsnz/ib-gateway:latest
+  #   container_name: lean-ibkr-gateway
+  #   environment:
+  #     - TWS_USERID=${IBKR_USERNAME}
+  #     - TWS_PASSWORD=${IBKR_PASSWORD}
+  #     - TRADING_MODE=${IBKR_TRADING_MODE:-paper}
+  #   ports:
+  #     - "4001:4001"
+  #     - "4002:4002"
+  #   networks:
+  #     - lean-network
+  #   restart: unless-stopped
+
+networks:
+  lean-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  lean-data:
+  lean-logs:

@@ -1,0 +1,23 @@
+.settings-page {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.settings-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.settings-page .ant-card {
+  margin-bottom: 16px;
+}
+
+.settings-page .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.settings-page .ant-tabs-content {
+  padding-top: 16px;
+}

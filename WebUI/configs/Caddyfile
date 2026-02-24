@@ -1,0 +1,87 @@
+# Caddy Configuration for Lean WebUI
+# https://caddyserver.com/docs/caddyfile
+
+yourdomain.com {
+    # Automatic HTTPS with Let's Encrypt
+    # Caddy automatically obtains and renews certificates
+    
+    # Root directory for static files
+    root * /var/www/leanwebui/dist
+    
+    # Enable file server
+    file_server
+    
+    # Gzip compression
+    encode gzip zstd
+    
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss:"
+        
+        # Other security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Remove server information
+        -Server
+    }
+    
+    # Cache static assets
+    @static {
+        path *.js *.css *.woff *.woff2 *.ttf *.eot *.png *.jpg *.jpeg *.gif *.svg *.ico
+    }
+    header @static {
+        Cache-Control "public, max-age=31536000, immutable"
+    }
+    
+    # Don't cache index.html
+    @html {
+        path *.html
+    }
+    header @html {
+        Cache-Control "no-cache, no-store, must-revalidate"
+    }
+    
+    # Proxy API requests to backend
+    handle /api/* {
+        reverse_proxy localhost:5000 {
+            health_uri /health
+            health_interval 10s
+            health_timeout 5s
+        }
+    }
+    
+    # Proxy WebSocket connections (SignalR)
+    handle /hubs/* {
+        reverse_proxy localhost:5000 {
+            transport http {
+                versions h2c 1.1
+            }
+        }
+    }
+    
+    # SPA fallback - serve index.html for all other routes
+    try_files {path} /index.html
+    
+    # Logging
+    log {
+        output file /var/log/caddy/leanwebui.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+}
+
+# Redirect www to non-www (optional)
+www.yourdomain.com {
+    redir https://yourdomain.com{uri} permanent
+}

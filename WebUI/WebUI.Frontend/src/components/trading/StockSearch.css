@@ -1,0 +1,105 @@
+/**
+ * Stock Search Styles
+ * 股票搜索样式
+ */
+
+.stock-search {
+  position: relative;
+}
+
+.stock-search-dropdown {
+  z-index: 1050;
+}
+
+.stock-search-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  gap: 12px;
+}
+
+.stock-symbol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+}
+
+.stock-symbol .symbol {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1890ff;
+}
+
+.stock-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stock-name {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-exchange {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.stock-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  min-width: 80px;
+  text-align: right;
+}
+
+/* Hover state */
+.ant-select-item-option-active .stock-search-option {
+  background: rgba(24, 144, 255, 0.04);
+}
+
+/* Dark theme */
+.dark-theme .stock-name {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .stock-exchange {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.dark-theme .stock-price {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .stock-search-option {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stock-symbol {
+    min-width: 60px;
+  }
+
+  .stock-price {
+    min-width: 60px;
+    font-size: 13px;
+  }
+
+  .stock-name {
+    font-size: 13px;
+  }
+
+  .stock-exchange {
+    font-size: 11px;
+  }
+}

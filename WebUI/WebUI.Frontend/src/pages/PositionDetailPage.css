@@ -1,0 +1,59 @@
+/**
+ * Position Detail Page Styles
+ * 持仓详情页面样式
+ */
+
+.position-detail-page {
+  padding: 24px;
+}
+
+.position-detail-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.position-detail-page .ant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.position-detail-page .ant-statistic-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.position-detail-page .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.position-detail-page .ant-descriptions-item-label {
+  font-weight: 600;
+}
+
+/* Loading state */
+.position-detail-page .ant-spin-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .position-detail-page {
+    padding: 16px;
+  }
+
+  .position-detail-page .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .position-detail-page .ant-statistic-content {
+    font-size: 20px;
+  }
+}

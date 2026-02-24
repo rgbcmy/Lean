@@ -1,0 +1,49 @@
+/**
+ * Breadcrumb Styles
+ * 面包屑导航样式
+ */
+
+.breadcrumb-container {
+  margin-left: 8px;
+}
+
+.breadcrumb-container .ant-breadcrumb {
+  font-size: 14px;
+}
+
+.breadcrumb-container .ant-breadcrumb-link {
+  color: rgba(0, 0, 0, 0.65);
+  transition: color 0.3s;
+}
+
+.breadcrumb-container .ant-breadcrumb-link:hover {
+  color: #1890ff;
+}
+
+.breadcrumb-container .ant-breadcrumb-separator {
+  color: rgba(0, 0, 0, 0.45);
+  margin: 0 8px;
+}
+
+/* Dark theme */
+.dark-theme .breadcrumb-container .ant-breadcrumb-link {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark-theme .breadcrumb-container .ant-breadcrumb-link:hover {
+  color: #1890ff;
+}
+
+.dark-theme .breadcrumb-container .ant-breadcrumb-separator {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Last breadcrumb item (current page) */
+.breadcrumb-container .ant-breadcrumb li:last-child {
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: 500;
+}
+
+.dark-theme .breadcrumb-container .ant-breadcrumb li:last-child {
+  color: rgba(255, 255, 255, 0.85);
+}

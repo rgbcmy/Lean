@@ -1,0 +1,74 @@
+/**
+ * Edit Strategy Page Styles
+ * 编辑策略页面样式
+ */
+
+.edit-strategy-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  margin: 0;
+}
+
+/* Form styles */
+.edit-strategy-page .ant-form-item {
+  margin-bottom: 24px;
+}
+
+/* Code editor textarea */
+.edit-strategy-page textarea[style*="monospace"] {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Alert boxes */
+.edit-strategy-page .ant-alert {
+  border-radius: 4px;
+}
+
+/* Strategy info card */
+.edit-strategy-page .ant-space-vertical {
+  font-size: 14px;
+}
+
+.edit-strategy-page .ant-space-vertical > div {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.edit-strategy-page .ant-space-vertical > div:last-child {
+  border-bottom: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .edit-strategy-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .edit-strategy-page .ant-card {
+    margin-bottom: 16px;
+  }
+}
+
+/* Button spacing */
+.edit-strategy-page .ant-space {
+  flex-wrap: wrap;
+}
+
+/* Loading spinner */
+.edit-strategy-page .ant-spin-nested-loading {
+  width: 100%;
+}

@@ -1,0 +1,25 @@
+/**
+ * Recurring Investment Page Styles
+ * 定投计划页面样式
+ */
+
+.recurring-investment-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .recurring-investment-page {
+    padding: 16px;
+  }
+
+  .recurring-investment-page .ant-table {
+    font-size: 12px;
+  }
+
+  .recurring-investment-page .ant-btn {
+    font-size: 12px;
+  }
+}

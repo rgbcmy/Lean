@@ -1,0 +1,45 @@
+/**
+ * Orders Page Styles
+ * 订单列表页面样式
+ */
+
+.orders-page {
+  padding: 24px;
+}
+
+.orders-filters {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+/* Dark theme */
+.dark-theme .orders-filters {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .orders-page {
+    padding: 16px;
+  }
+
+  .orders-filters {
+    padding: 12px;
+  }
+
+  .orders-filters .ant-space {
+    width: 100%;
+  }
+
+  .orders-filters .ant-space-item {
+    width: 100%;
+  }
+
+  .orders-filters .ant-input,
+  .orders-filters .ant-select,
+  .orders-filters .ant-picker {
+    width: 100% !important;
+  }
+}

@@ -1,0 +1,22 @@
+.risk-dashboard-page {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.risk-dashboard-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.risk-dashboard-page .risk-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.risk-dashboard-page .ant-card {
+  height: 100%;
+}

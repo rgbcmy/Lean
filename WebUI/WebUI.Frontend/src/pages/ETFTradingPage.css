@@ -1,0 +1,57 @@
+/**
+ * ETF Trading Page Styles
+ * ETF 交易页面样式
+ */
+
+.etf-trading-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.etf-header-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.etf-header-card .ant-card-body {
+  padding: 24px;
+}
+
+.etf-header-card h2,
+.etf-header-card .ant-typography {
+  color: #fff;
+  margin: 0;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+}
+
+.order-card {
+  max-width: 600px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .etf-trading-page {
+    padding: 16px;
+  }
+
+  .etf-header-card .ant-space {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .order-card {
+    max-width: 100%;
+  }
+}
+
+/* Dark theme */
+.dark-theme .etf-header-card {
+  background: linear-gradient(135deg, #434343 0%, #000000 100%);
+}

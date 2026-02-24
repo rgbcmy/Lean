@@ -1,0 +1,67 @@
+/**
+ * Dashboard Page Styles
+ * 仪表板页面样式
+ */
+
+.dashboard-page {
+  padding: 0;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.info-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  min-height: 220px;
+}
+
+.info-card .ant-card-head {
+  font-weight: 600;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Dark theme support */
+.dark-theme .stat-card,
+.dark-theme .info-card {
+  background: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark-theme .stat-card:hover,
+.dark-theme .info-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .info-card {
+    min-height: auto;
+  }
+}

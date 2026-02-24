@@ -1,0 +1,45 @@
+/**
+ * Backtest Config Page Styles
+ * 回测配置页面样式
+ */
+
+.backtest-config-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header-card {
+  margin-bottom: 24px;
+}
+
+.page-header-card .ant-card-body {
+  padding: 16px 24px;
+}
+
+.config-form-card {
+  margin-bottom: 24px;
+}
+
+.config-form-card .ant-divider {
+  margin: 16px 0;
+}
+
+.config-form-card .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.config-form-card .ant-typography {
+  margin-bottom: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .backtest-config-page {
+    padding: 16px;
+  }
+
+  .config-form-card .ant-col {
+    width: 100%;
+  }
+}

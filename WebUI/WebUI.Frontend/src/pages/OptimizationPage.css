@@ -1,0 +1,45 @@
+/**
+ * Optimization Page Styles
+ * 参数优化页面样式
+ */
+
+.optimization-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header-card {
+  margin-bottom: 24px;
+}
+
+.page-header-card .ant-card-body {
+  padding: 16px 24px;
+}
+
+.optimization-form-card {
+  margin-bottom: 24px;
+}
+
+.optimization-form-card .ant-divider {
+  margin: 16px 0;
+}
+
+.optimization-form-card .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.optimization-page .ant-statistic {
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .optimization-page {
+    padding: 16px;
+  }
+
+  .optimization-form-card .ant-col {
+    width: 100%;
+  }
+}

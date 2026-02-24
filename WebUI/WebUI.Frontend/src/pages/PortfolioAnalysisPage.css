@@ -1,0 +1,69 @@
+/**
+ * Portfolio Analysis Page Styles
+ * 投资组合分析页面样式
+ */
+
+.portfolio-analysis-page {
+  padding: 24px;
+}
+
+.portfolio-analysis-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.portfolio-analysis-page .ant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.portfolio-analysis-page .ant-statistic-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 8px;
+}
+
+.portfolio-analysis-page .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.portfolio-analysis-page .ant-divider {
+  margin: 24px 0;
+}
+
+/* Loading state */
+.portfolio-analysis-page .ant-spin-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Inner cards */
+.portfolio-analysis-page .ant-card-inner {
+  background-color: #fafafa;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .portfolio-analysis-page {
+    padding: 16px;
+  }
+
+  .portfolio-analysis-page .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .portfolio-analysis-page .ant-statistic-content {
+    font-size: 20px;
+  }
+
+  .portfolio-analysis-page .ant-picker-range {
+    width: 100%;
+  }
+}
