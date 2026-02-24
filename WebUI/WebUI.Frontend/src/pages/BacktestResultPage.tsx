@@ -20,7 +20,6 @@ import {
   Progress,
   Descriptions,
   Dropdown,
-  Menu,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -67,6 +66,9 @@ const BacktestResultPage: React.FC = () => {
   const drawdownChartRef = useRef<HTMLDivElement>(null);
   const equityChartInstance = useRef<echarts.ECharts | null>(null);
   const drawdownChartInstance = useRef<echarts.ECharts | null>(null);
+  // Resize handlers for cleanup
+  const equityResizeHandler = useRef<(() => void) | null>(null);
+  const drawdownResizeHandler = useRef<(() => void) | null>(null);
 
   // Polling interval for running backtests
   const pollingIntervalRef = useRef<number | null>(null);
@@ -216,8 +218,12 @@ const BacktestResultPage: React.FC = () => {
 
     chart.setOption(option);
 
-    // Resize handler
-    window.addEventListener('resize', () => chart.resize());
+    // Resize handler — stored so it can be properly removed
+    if (equityResizeHandler.current) {
+      window.removeEventListener('resize', equityResizeHandler.current);
+    }
+    equityResizeHandler.current = () => chart.resize();
+    window.addEventListener('resize', equityResizeHandler.current);
   };
 
   /**
@@ -287,8 +293,12 @@ const BacktestResultPage: React.FC = () => {
 
     chart.setOption(option);
 
-    // Resize handler
-    window.addEventListener('resize', () => chart.resize());
+    // Resize handler — stored so it can be properly removed
+    if (drawdownResizeHandler.current) {
+      window.removeEventListener('resize', drawdownResizeHandler.current);
+    }
+    drawdownResizeHandler.current = () => chart.resize();
+    window.addEventListener('resize', drawdownResizeHandler.current);
   };
 
   /**
@@ -304,6 +314,8 @@ const BacktestResultPage: React.FC = () => {
     }
 
     return () => {
+      if (equityResizeHandler.current) window.removeEventListener('resize', equityResizeHandler.current);
+      if (drawdownResizeHandler.current) window.removeEventListener('resize', drawdownResizeHandler.current);
       equityChartInstance.current?.dispose();
       drawdownChartInstance.current?.dispose();
     };
@@ -405,21 +417,13 @@ const BacktestResultPage: React.FC = () => {
   };
 
   /**
-   * Render export menu
+   * Export menu items
    */
-  const exportMenu = (
-    <Menu>
-      <Menu.Item key="pdf" onClick={() => handleExport('PDF')}>
-        导出 PDF 报告
-      </Menu.Item>
-      <Menu.Item key="csv" onClick={() => handleExport('CSV')}>
-        导出 CSV 交易记录
-      </Menu.Item>
-      <Menu.Item key="json" onClick={() => handleExport('JSON')}>
-        导出 JSON 原始数据
-      </Menu.Item>
-    </Menu>
-  );
+  const exportMenuItems = [
+    { key: 'pdf', label: '导出 PDF 报告', onClick: () => handleExport('PDF') },
+    { key: 'csv', label: '导出 CSV 交易记录', onClick: () => handleExport('CSV') },
+    { key: 'json', label: '导出 JSON 原始数据', onClick: () => handleExport('JSON') },
+  ];
 
   if (loading) {
     return (
@@ -484,7 +488,7 @@ const BacktestResultPage: React.FC = () => {
                 </Button>
               )}
               {backtest.status === 'Completed' && (
-                <Dropdown menu={{ items: exportMenu.props.children.map((item: any) => ({ key: item.key, label: item.props.children, onClick: item.props.onClick })) }} placement="bottomRight">
+                <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
                   <Button
                     icon={<DownloadOutlined />}
                     loading={exporting}

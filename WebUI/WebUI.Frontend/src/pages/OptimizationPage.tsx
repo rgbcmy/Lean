@@ -69,7 +69,7 @@ const OptimizationPage: React.FC = () => {
     const loadStrategies = async () => {
       try {
         setLoadingStrategies(true);
-        const result = await getStrategies({ status: 'Active' });
+        const result = await getStrategies({});
         setStrategies(result);
       } catch (error) {
         console.error('Failed to load strategies:', error);

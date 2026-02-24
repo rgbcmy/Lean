@@ -50,7 +50,8 @@ const StockSearch: React.FC<StockSearchProps> = ({
 
       setLoading(true);
       try {
-        const results = await searchStocks(query);
+        const raw = await searchStocks(query);
+        const results: Stock[] = Array.isArray(raw) ? raw : [];
         
         if (results.length === 0) {
           setOptions([{

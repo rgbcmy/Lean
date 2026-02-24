@@ -17,6 +17,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -121,15 +122,7 @@ namespace WebUI.Core.Services
                 _config = config;
                 UpdateConnectionState(IbkrConnectionStatus.Connecting);
 
-                // TODO: Implement actual connection to Lean engine via IPC (Named Pipe or TCP)
-                // This will be implemented in task 5.1 when extending Lean's IBrokerageHandler
-                // For now, simulate connection logic
-                
-                // Simulate connection attempt
-                await Task.Delay(1000, cancellationToken);
-
-                // Check if TWS/Gateway is accessible
-                // In production, this would connect via IPC to Lean engine
+                // TCP probe to verify TWS/Gateway is actually listening
                 var connected = await AttemptConnectionAsync(config, cancellationToken);
 
                 if (connected)
@@ -302,16 +295,37 @@ namespace WebUI.Core.Services
         /// </summary>
         private async Task<bool> AttemptConnectionAsync(IbkrConnectionConfig config, CancellationToken cancellationToken)
         {
+            // Real TCP probe — verifies TWS/Gateway is actually listening on the specified port
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
             try
             {
-                // TODO: Implement actual connection via IPC to Lean engine
-                // This is a placeholder that simulates a successful connection
-                await Task.Delay(500, cancellationToken);
-                return true; // Simulated success
+                using var tcp = new TcpClient();
+                var connectTask = tcp.ConnectAsync(config.Host, config.Port);
+                var completed = await Task.WhenAny(connectTask, Task.Delay(Timeout.Infinite, cts.Token));
+
+                if (completed == connectTask && connectTask.IsCompletedSuccessfully)
+                {
+                    _logger.LogInformation("TCP probe succeeded: {Host}:{Port}", config.Host, config.Port);
+                    return true;
+                }
+
+                _logger.LogWarning("TCP probe timed out (5s): {Host}:{Port} — TWS/Gateway not responding", config.Host, config.Port);
+                return false;
+            }
+            catch (SocketException ex)
+            {
+                _logger.LogWarning(ex, "TCP probe refused/unreachable: {Host}:{Port}", config.Host, config.Port);
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("TCP probe timed out (5s): {Host}:{Port}", config.Host, config.Port);
+                return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Connection attempt failed");
+                _logger.LogError(ex, "TCP probe unexpected error: {Host}:{Port}", config.Host, config.Port);
                 return false;
             }
         }

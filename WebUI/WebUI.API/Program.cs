@@ -224,7 +224,11 @@ else
 }
 
 // Register IBKR and market data services
-builder.Services.AddSingleton<IIbkrConnectionService, IbkrConnectionService>();
+// IbkrConnectionService extends BackgroundService; register the concrete type as a singleton
+// so it can be injected via IIbkrConnectionService, AND as a hosted service so ExecuteAsync starts.
+builder.Services.AddSingleton<IbkrConnectionService>();
+builder.Services.AddSingleton<IIbkrConnectionService>(sp => sp.GetRequiredService<IbkrConnectionService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<IbkrConnectionService>());
 builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
 
 // Register SignalR push services
@@ -440,6 +444,13 @@ using (var scope = app.Services.CreateScope())
         if (dbProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
         {
             dbContext.Database.EnsureCreated();
+            // Ensure new tables added after initial EnsureCreated are present
+            dbContext.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS SystemSettings (
+                    Key TEXT NOT NULL PRIMARY KEY,
+                    Value TEXT NOT NULL,
+                    UpdatedAt TEXT NOT NULL
+                )");
         }
         else
         {

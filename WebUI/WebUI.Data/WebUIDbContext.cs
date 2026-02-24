@@ -25,6 +25,7 @@ namespace WebUI.Data
         public DbSet<RecurringPlan> RecurringPlans { get; set; } = null!;
         public DbSet<Backtest> Backtests { get; set; } = null!;
         public DbSet<ParameterOptimization> ParameterOptimizations { get; set; } = null!;
+        public DbSet<SystemSetting> SystemSettings { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -196,6 +197,12 @@ namespace WebUI.Data
                     .WithMany()
                     .HasForeignKey(e => e.BestBacktestId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // SystemSetting configuration
+            modelBuilder.Entity<SystemSetting>(entity =>
+            {
+                entity.HasKey(e => e.Key);
             });
         }
     }

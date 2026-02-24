@@ -107,17 +107,33 @@ const PortfolioAnalysisPage: React.FC = () => {
   }, [dateRange]);
 
   /**
-   * Calculate performance metrics
-   * 计算性能指标
+   * Calculate performance metrics from available data
+   * 从现有数据计算性能指标
    */
   const calculateMetrics = () => {
     if (!summary) return null;
 
-    const sharpeRatio = 1.5; // TODO: Calculate from historical data
-    const maxDrawdown = -15.3; // TODO: Calculate from equity curve
-    const winRate = 65.5; // TODO: Calculate from trade history
+    // Derive max drawdown from equity curve if available
+    let maxDrawdown = 0;
+    if (equityCurve.length > 1) {
+      let peak = equityCurve[0].equity;
+      for (const point of equityCurve) {
+        if (point.equity > peak) peak = point.equity;
+        const drawdown = peak > 0 ? ((point.equity - peak) / peak) * 100 : 0;
+        if (drawdown < maxDrawdown) maxDrawdown = drawdown;
+      }
+    }
 
-    return { sharpeRatio, maxDrawdown, winRate };
+    // Total return from summary data
+    const totalReturn = summary.totalCostBasis > 0
+      ? ((summary.totalMarketValue - summary.totalCostBasis) / summary.totalCostBasis) * 100
+      : 0;
+
+    return {
+      sharpeRatio: null as number | null, // Requires risk-free rate and historical volatility
+      maxDrawdown,
+      totalReturn,
+    };
   };
 
   const metrics = calculateMetrics();
@@ -171,7 +187,7 @@ const PortfolioAnalysisPage: React.FC = () => {
               <Col xs={24} sm={12} md={6}>
                 <Statistic
                   title="总成本"
-                  value={summary.totalCost}
+                  value={summary.totalCostBasis}
                   precision={2}
                   prefix="$"
                 />
@@ -208,29 +224,29 @@ const PortfolioAnalysisPage: React.FC = () => {
             <Row gutter={16}>
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title="今日盈亏"
-                  value={Math.abs(summary.todayPnL)}
+                  title="已实现盈亏"
+                  value={Math.abs(summary.totalRealizedPnL)}
                   precision={2}
-                  prefix={summary.todayPnL >= 0 ? '+$' : '-$'}
+                  prefix={summary.totalRealizedPnL >= 0 ? '+$' : '-$'}
                   valueStyle={{
-                    color: summary.todayPnL >= 0 ? '#3f8600' : '#cf1322',
+                    color: summary.totalRealizedPnL >= 0 ? '#3f8600' : '#cf1322',
                   }}
                 />
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title="总收益率"
-                  value={Math.abs(summary.totalReturn)}
+                  title="持仓收益率"
+                  value={Math.abs(metrics?.totalReturn ?? 0)}
                   precision={2}
                   suffix="%"
-                  prefix={summary.totalReturn >= 0 ? '+' : '-'}
+                  prefix={(metrics?.totalReturn ?? 0) >= 0 ? '+' : '-'}
                   valueStyle={{
-                    color: summary.totalReturn >= 0 ? '#3f8600' : '#cf1322',
+                    color: (metrics?.totalReturn ?? 0) >= 0 ? '#3f8600' : '#cf1322',
                   }}
                 />
               </Col>
               <Col xs={24} sm={12} md={6}>
-                <Statistic title="持仓数量" value={summary.positionCount} suffix="个" />
+                <Statistic title="持仓数量" value={summary.positions.length} suffix="个" />
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <Statistic
@@ -248,14 +264,16 @@ const PortfolioAnalysisPage: React.FC = () => {
           {metrics && (
             <Card title="性能指标" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
-                <Col xs={24} sm={8}>
-                  <Statistic
-                    title="夏普比率"
-                    value={metrics.sharpeRatio}
-                    precision={2}
-                    valueStyle={{ color: metrics.sharpeRatio > 1 ? '#3f8600' : '#faad14' }}
-                  />
-                </Col>
+                {metrics.sharpeRatio !== null && (
+                  <Col xs={24} sm={8}>
+                    <Statistic
+                      title="夏普比率"
+                      value={metrics.sharpeRatio}
+                      precision={2}
+                      valueStyle={{ color: metrics.sharpeRatio > 1 ? '#3f8600' : '#faad14' }}
+                    />
+                  </Col>
+                )}
                 <Col xs={24} sm={8}>
                   <Statistic
                     title="最大回撤"
@@ -268,11 +286,12 @@ const PortfolioAnalysisPage: React.FC = () => {
                 </Col>
                 <Col xs={24} sm={8}>
                   <Statistic
-                    title="胜率"
-                    value={metrics.winRate}
-                    precision={1}
+                    title="总收益率"
+                    value={Math.abs(metrics.totalReturn)}
+                    precision={2}
                     suffix="%"
-                    valueStyle={{ color: metrics.winRate > 50 ? '#3f8600' : '#cf1322' }}
+                    prefix={metrics.totalReturn >= 0 ? '+' : '-'}
+                    valueStyle={{ color: metrics.totalReturn >= 0 ? '#3f8600' : '#cf1322' }}
                   />
                 </Col>
               </Row>
@@ -332,7 +351,7 @@ const PortfolioAnalysisPage: React.FC = () => {
                 <>
                   <Text>
                     最大持仓占比: {positionAllocation[0]?.percentage.toFixed(2)}% (
-                    {positionAllocation[0]?.symbol})
+                    {positionAllocation[0]?.name})
                   </Text>
                   <br />
                   <Text>
@@ -355,7 +374,7 @@ const PortfolioAnalysisPage: React.FC = () => {
                   <br />
                   <Text>
                     最大行业占比: {sectorAllocation[0]?.percentage.toFixed(2)}% (
-                    {sectorAllocation[0]?.sector || sectorAllocation[0]?.symbol})
+                    {sectorAllocation[0]?.name})
                   </Text>
                 </>
               )}

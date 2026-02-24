@@ -74,8 +74,8 @@ export async function getOrders(params?: {
   endDate?: string;
   page?: number;
   pageSize?: number;
-}): Promise<{ orders: Order[]; total: number }> {
-  const response = await apiClient.get<{ orders: Order[]; total: number }>(
+}): Promise<{ orders: Order[]; totalCount: number }> {
+  const response = await apiClient.get<{ orders: Order[]; totalCount: number }>(
     '/api/v1/orders',
     { params }
   );

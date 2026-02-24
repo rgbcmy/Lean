@@ -94,7 +94,7 @@ class SignalRService {
    */
   async getMarketDataHub(): Promise<signalR.HubConnection> {
     if (!this.marketDataHub) {
-      this.marketDataHub = this.createConnection('market');
+      this.marketDataHub = this.createConnection('marketdata');
     }
     
     if (this.marketDataHub.state === signalR.HubConnectionState.Disconnected) {
@@ -110,7 +110,7 @@ class SignalRService {
    */
   async getOrderHub(): Promise<signalR.HubConnection> {
     if (!this.orderHub) {
-      this.orderHub = this.createConnection('order');
+      this.orderHub = this.createConnection('orders');
     }
     
     if (this.orderHub.state === signalR.HubConnectionState.Disconnected) {
@@ -126,7 +126,7 @@ class SignalRService {
    */
   async getStrategyHub(): Promise<signalR.HubConnection> {
     if (!this.strategyHub) {
-      this.strategyHub = this.createConnection('strategy');
+      this.strategyHub = this.createConnection('strategies');
     }
     
     if (this.strategyHub.state === signalR.HubConnectionState.Disconnected) {
@@ -211,6 +211,50 @@ class SignalRService {
     }
   }
   
+  /**
+   * Determine which hub to use based on event name
+   * 根据事件名称确定使用哪个 Hub
+   */
+  private getHubForEvent(event: string): Promise<signalR.HubConnection> {
+    if (event === 'PositionUpdate' || event === 'OrderUpdate' || event === 'TradeUpdate') {
+      return this.getOrderHub();
+    }
+    if (event === 'MarketData' || event.startsWith('MarketData_')) {
+      return this.getMarketDataHub();
+    }
+    if (event.startsWith('Strategy') || event.startsWith('StrategyLog')) {
+      return this.getStrategyHub();
+    }
+    // Default to order hub
+    return this.getOrderHub();
+  }
+
+  /**
+   * Subscribe to a hub event (generic on/off interface)
+   * 订阅 Hub 事件（通用接口）
+   */
+  on(event: string, callback: (data: any) => void): void {
+    this.getHubForEvent(event)
+      .then(hub => hub.on(event, callback))
+      .catch(err => console.warn(`SignalR .on('${event}') failed:`, err));
+  }
+
+  /**
+   * Unsubscribe from a hub event (generic on/off interface)
+   * 取消订阅 Hub 事件（通用接口）
+   */
+  off(event: string, callback?: (data: any) => void): void {
+    if (callback) {
+      this.orderHub?.off(event, callback);
+      this.marketDataHub?.off(event, callback);
+      this.strategyHub?.off(event, callback);
+    } else {
+      this.orderHub?.off(event);
+      this.marketDataHub?.off(event);
+      this.strategyHub?.off(event);
+    }
+  }
+
   /**
    * Disconnect all hubs
    * 断开所有 Hub 连接

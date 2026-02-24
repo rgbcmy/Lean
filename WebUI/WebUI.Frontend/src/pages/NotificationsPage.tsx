@@ -193,7 +193,7 @@ const NotificationsPage: React.FC = () => {
                       删除
                     </Button>
                   </Popconfirm>,
-                ].filter(Boolean)}
+                ].filter((item): item is React.ReactElement => Boolean(item))}
               >
                 <List.Item.Meta
                   avatar={

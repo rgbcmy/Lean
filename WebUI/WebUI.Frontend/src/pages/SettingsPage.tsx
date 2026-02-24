@@ -17,6 +17,7 @@ import {
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getSettings, updateSettings } from '../api/settingsApi';
 import type { SystemSettings, SettingsUpdateRequest } from '../types/settings';
+import { useThemeStore } from '../stores';
 import IBKRConnectionForm from '../components/settings/IBKRConnectionForm';
 import DatabaseConfigForm from '../components/settings/DatabaseConfigForm';
 import ThemeLanguageForm from '../components/settings/ThemeLanguageForm';
@@ -31,6 +32,7 @@ const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const { setTheme } = useThemeStore();
 
   // Load settings
   const loadSettings = async () => {
@@ -66,6 +68,12 @@ const SettingsPage: React.FC = () => {
 
       const updatedSettings = await updateSettings(updateRequest);
       setSettings(updatedSettings);
+
+      // Apply theme immediately to Ant Design ThemeProvider
+      if (values.theme?.mode) {
+        setTheme(values.theme.mode as 'light' | 'dark');
+      }
+
       message.success('设置已保存');
     } catch (error: any) {
       if (error.errorFields) {

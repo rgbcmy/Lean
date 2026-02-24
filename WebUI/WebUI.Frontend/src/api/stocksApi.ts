@@ -11,10 +11,15 @@ import type { Stock, StockQuote } from '../types/stock';
  * 根据代码或公司名称搜索股票
  */
 export async function searchStocks(query: string): Promise<Stock[]> {
-  const response = await apiClient.get<Stock[]>(`/api/v1/stocks/search`, {
+  const response = await apiClient.get<any>(`/api/v1/stocks/search`, {
     params: { q: query },
   });
-  return response.data;
+  const data = response.data;
+  // Handle direct array or wrapped { results: [...] } / { data: [...] } shapes
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  if (data?.data && Array.isArray(data.data)) return data.data;
+  return [];
 }
 
 /**

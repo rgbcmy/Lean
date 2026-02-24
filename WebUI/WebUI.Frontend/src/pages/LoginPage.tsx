@@ -35,7 +35,12 @@ const LoginPage: React.FC = () => {
       });
       
       // Store auth data in Zustand store
-      setAuth(response.accessToken, response.refreshToken, response.user);
+      setAuth(response.accessToken, response.refreshToken, {
+        id: response.userId,
+        username: response.username,
+        email: undefined,
+        role: 'user',
+      });
       
       // Show success message
       message.success('登录成功！');

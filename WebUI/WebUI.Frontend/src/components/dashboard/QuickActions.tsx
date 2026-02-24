@@ -59,7 +59,7 @@ const QuickActions: React.FC = () => {
       icon: <BarChartOutlined />,
       title: '运行回测',
       description: '回测策略性能',
-      onClick: () => navigate('/backtesting/create'),
+      onClick: () => navigate('/backtests/new'),
     },
     {
       key: 'trade-etf',

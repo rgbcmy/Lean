@@ -62,13 +62,18 @@ const EditStrategyPage: React.FC = () => {
         const result = await getStrategyById(id);
         setStrategy(result);
 
-        // Parse parameters
+        // Parse parameters — handle both string and object types
         let parameters = '{}';
         if (result.parameters) {
           try {
-            parameters = JSON.stringify(JSON.parse(result.parameters), null, 2);
+            const parsed = typeof result.parameters === 'string'
+              ? JSON.parse(result.parameters)
+              : result.parameters;
+            parameters = JSON.stringify(parsed, null, 2);
           } catch (error) {
-            parameters = result.parameters;
+            parameters = typeof result.parameters === 'string'
+              ? result.parameters
+              : JSON.stringify(result.parameters, null, 2);
           }
         }
 

@@ -23,8 +23,8 @@ import {
 } from '@ant-design/icons';
 import StockSearch from '../components/trading/StockSearch';
 import OrderForm from '../components/trading/OrderForm';
-import { getStockQuote, unsubscribeFromStock } from '../api/stocksApi';
-// import { useConnectionStore } from '../stores';
+import { getStockQuote, subscribeToStock, unsubscribeFromStock } from '../api/stocksApi';
+import { signalRService } from '../services/signalrService';
 import type { Stock, StockQuote } from '../types/stock';
 import './ETFTradingPage.css';
 
@@ -39,8 +39,7 @@ const ETFTradingPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
-
-  // const connection = useConnectionStore((state) => state.connection);
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
   /**
    * Handle ETF selection
@@ -49,22 +48,15 @@ const ETFTradingPage: React.FC = () => {
   const handleSelectETF = async (stock: Stock) => {
     const symbol = stock.symbol;
     setSelectedSymbol(symbol);
+    setSelectedStock(stock);
     setLoading(true);
 
     try {
-      // Unsubscribe from previous stock
-      // if (quote && connection) {
-      //   await unsubscribeFromStock(quote.symbol);
-      // }
-
-      // Get quote for new ETF
       const newQuote = await getStockQuote(symbol);
       setQuote(newQuote);
 
-      // Subscribe to real-time updates
-      // if (connection) {
-      //   await subscribeToStock(symbol);
-      // }
+      // Subscribe to backend market data stream
+      await subscribeToStock(symbol);
     } catch (error) {
       console.error('Failed to load ETF quote:', error);
       message.error('加载 ETF 报价失败');
@@ -74,29 +66,37 @@ const ETFTradingPage: React.FC = () => {
   };
 
   /**
-   * Subscribe to real-time quote updates
-   * 订阅实时报价更新
+   * Setup SignalR subscription for real-time quote updates
+   * 设置 SignalR 订阅以接收实时 ETF 报价更新
    */
   useEffect(() => {
-    // TODO: Implement SignalR connection for real-time updates
-    // const connection = useConnectionStore.getState().connection;
-    // if (!connection || !selectedSymbol) return;
+    if (!selectedStock) return;
 
-    // const handleQuoteUpdate = (_updatedQuote: StockQuote) => {
-      // if (updatedQuote.symbol === selectedSymbol) {
-      //   setQuote(updatedQuote);
-      // }
-    // };
+    let subscribed = false;
 
-    // connection.on('StockQuoteUpdate', handleQuoteUpdate);
-
-    return () => {
-      // connection.off('StockQuoteUpdate', handleQuoteUpdate);
-      if (selectedSymbol) {
-        unsubscribeFromStock(selectedSymbol);
+    const setupMarketDataSubscription = async () => {
+      try {
+        await signalRService.subscribeMarketData(selectedStock.symbol, (data: Partial<StockQuote>) => {
+          setQuote((prevQuote) => {
+            if (!prevQuote) return null;
+            return { ...prevQuote, ...data, symbol: prevQuote.symbol };
+          });
+        });
+        subscribed = true;
+      } catch (error) {
+        console.error('Failed to subscribe to ETF market data:', error);
       }
     };
-  }, [selectedSymbol]);
+
+    setupMarketDataSubscription();
+
+    return () => {
+      if (subscribed && selectedStock) {
+        signalRService.unsubscribeMarketData(selectedStock.symbol).catch(console.error);
+        unsubscribeFromStock(selectedStock.symbol).catch(console.error);
+      }
+    };
+  }, [selectedStock]);
 
   /**
    * Get market status tag
@@ -146,7 +146,7 @@ const ETFTradingPage: React.FC = () => {
                 <Title level={2} style={{ margin: 0 }}>
                   {quote.symbol}
                 </Title>
-                <Text type="secondary">{quote.companyName || quote.name}</Text>
+                <Text type="secondary">{quote.name}</Text>
               </div>
               {getMarketStatusTag(quote.marketStatus)}
             </Space>

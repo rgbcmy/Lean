@@ -62,8 +62,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage', // localStorage key
-      // Only persist refresh token and user, not access token (for security)
       partialize: (state) => ({
+        accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,

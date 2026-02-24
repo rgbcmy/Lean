@@ -3,7 +3,7 @@
  * 路由配置
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createHashRouter, Navigate } from 'react-router-dom';
 import { isAuthenticated } from '../utils/tokenManager';
 
 // Lazy load pages for code splitting
@@ -101,7 +101,7 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
  * Router configuration
  * 路由配置
  */
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   // Public routes
   {
     path: '/login',
@@ -151,6 +151,10 @@ export const router = createBrowserRouter([
         children: [
           {
             path: 'stocks',
+            element: <StockTradingPage />,
+          },
+          {
+            path: 'stocks/:symbol',
             element: <StockTradingPage />,
           },
           {
@@ -266,7 +270,24 @@ export const router = createBrowserRouter([
       },
       {
         path: 'settings',
-        element: <SettingsPage />,
+        children: [
+          {
+            index: true,
+            element: <SettingsPage />,
+          },
+          {
+            path: 'account',
+            element: <SettingsPage />,
+          },
+          {
+            path: 'ibkr',
+            element: <SettingsPage />,
+          },
+          {
+            path: 'system',
+            element: <SettingsPage />,
+          },
+        ],
       },
     ],
   },

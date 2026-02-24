@@ -80,7 +80,7 @@ const OrdersPage: React.FC = () => {
 
       const result = await getOrders(params);
       setOrders(result.orders);
-      setTotal(result.total);
+      setTotal(result.totalCount);
     } catch (error) {
       console.error('Failed to load orders:', error);
       message.error('加载订单失败');

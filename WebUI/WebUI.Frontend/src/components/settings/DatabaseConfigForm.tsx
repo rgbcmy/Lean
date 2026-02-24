@@ -133,7 +133,6 @@ const DatabaseConfigForm: React.FC<DatabaseConfigFormProps> = ({ form }) => {
             ? '例如：Host=localhost;Port=5432;Database=leanwebui;Username=postgres;Password=***'
             : '例如：Data Source=leanwebui.db'
         }
-        rules={[{ required: true, message: '请输入连接字符串' }]}
       >
         <Input.TextArea
           rows={3}

@@ -14,6 +14,8 @@ import {
   Spin,
   Tabs,
   Divider,
+  InputNumber,
+  Switch,
 } from 'antd';
 import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getRiskConfig, updateRiskConfig } from '../api/riskApi';
@@ -142,12 +144,7 @@ const RiskConfigPage: React.FC = () => {
                 tooltip="当保证金使用率超过此阈值时发送警告"
                 rules={[{ required: true, message: '请输入警告阈值' }]}
               >
-                <Space>
-                  <Form.Item name="marginWarningThreshold" noStyle>
-                    <input type="number" min={0} max={100} style={{ width: 100 }} />
-                  </Form.Item>
-                  <span>%</span>
-                </Space>
+                <InputNumber min={0} max={100} addonAfter="%" style={{ width: 150 }} />
               </Form.Item>
 
               <Form.Item
@@ -156,12 +153,7 @@ const RiskConfigPage: React.FC = () => {
                 tooltip="当保证金使用率超过此阈值时阻止新开仓"
                 rules={[{ required: true, message: '请输入阻止阈值' }]}
               >
-                <Space>
-                  <Form.Item name="marginBlockThreshold" noStyle>
-                    <input type="number" min={0} max={100} style={{ width: 100 }} />
-                  </Form.Item>
-                  <span>%</span>
-                </Space>
+                <InputNumber min={0} max={100} addonAfter="%" style={{ width: 150 }} />
               </Form.Item>
             </Card>
 
@@ -173,7 +165,7 @@ const RiskConfigPage: React.FC = () => {
                 name="circuitBreakerEnabled"
                 valuePropName="checked"
               >
-                <input type="checkbox" />
+                <Switch />
               </Form.Item>
 
               <Form.Item
@@ -181,12 +173,7 @@ const RiskConfigPage: React.FC = () => {
                 name="priceMovementThreshold"
                 tooltip="1分钟内价格变动超过此百分比时触发熔断"
               >
-                <Space>
-                  <Form.Item name="priceMovementThreshold" noStyle>
-                    <input type="number" min={0} max={100} style={{ width: 100 }} />
-                  </Form.Item>
-                  <span>%</span>
-                </Space>
+                <InputNumber min={0} max={100} addonAfter="%" style={{ width: 150 }} />
               </Form.Item>
 
               <Form.Item
@@ -194,12 +181,7 @@ const RiskConfigPage: React.FC = () => {
                 name="largeOrderThreshold"
                 tooltip="订单金额超过此值时需要二次确认"
               >
-                <Space>
-                  <span>$</span>
-                  <Form.Item name="largeOrderThreshold" noStyle>
-                    <input type="number" min={0} style={{ width: 150 }} />
-                  </Form.Item>
-                </Space>
+                <InputNumber min={0} addonBefore="$" style={{ width: 180 }} />
               </Form.Item>
             </Card>
 
@@ -212,7 +194,7 @@ const RiskConfigPage: React.FC = () => {
                 valuePropName="checked"
                 tooltip="遵守美国Pattern Day Trader规则"
               >
-                <input type="checkbox" />
+                <Switch />
               </Form.Item>
             </Card>
           </TabPane>

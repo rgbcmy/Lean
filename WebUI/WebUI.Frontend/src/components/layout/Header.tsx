@@ -3,7 +3,7 @@
  * 头部导航栏组件 - 包含用户菜单、通知和 IBKR 状态
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Button, Dropdown, Badge, Space, Avatar, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -25,6 +25,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useIBKRStore } from '../../stores/ibkrStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { performLogout } from '../../utils/logout';
+import { getIbkrStatus } from '../../api/ibkrApi';
 import './Header.css';
 
 const { Header: AntHeader } = Layout;
@@ -47,9 +48,40 @@ const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
 }) => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const { connectionStatus } = useIBKRStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const { connectionStatus, setConnected, setDisconnected, setConnecting } = useIBKRStore();
   const { unreadCount } = useNotificationStore();
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sync IBKR connection status from the backend every 30 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const sync = async () => {
+      try {
+        const state = await getIbkrStatus();
+        switch (state.status) {
+          case 'Connected':
+            setConnected(state.accountId || '');
+            break;
+          case 'Connecting':
+          case 'Reconnecting':
+            setConnecting();
+            break;
+          default:
+            setDisconnected(state.lastError);
+        }
+      } catch {
+        // ignore polling errors silently — backend may be temporarily unavailable
+      }
+    };
+
+    sync();
+    pollRef.current = setInterval(sync, 30_000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [isAuthenticated]);
   
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 

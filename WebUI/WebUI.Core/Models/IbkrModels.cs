@@ -15,12 +15,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace WebUI.Core.Models
 {
     /// <summary>
     /// Connection status for IBKR TWS/Gateway
     /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum IbkrConnectionStatus
     {
         /// <summary>
@@ -52,6 +54,7 @@ namespace WebUI.Core.Models
     /// <summary>
     /// Account type for IBKR
     /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum IbkrAccountType
     {
         /// <summary>
@@ -84,6 +87,11 @@ namespace WebUI.Core.Models
         /// IBKR account ID
         /// </summary>
         public string AccountId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// IBKR client ID (unique per connection, 0-32)
+        /// </summary>
+        public int ClientId { get; set; } = 1;
 
         /// <summary>
         /// Account type (Paper or Live)

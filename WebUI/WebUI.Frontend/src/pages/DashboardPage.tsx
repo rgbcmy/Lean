@@ -3,8 +3,8 @@
  * 仪表板页面组件
  */
 
-import React from 'react';
-import { Typography, Card, Row, Col, Statistic, Button, Space, Progress } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Typography, Card, Row, Col, Statistic, Button, Space, Progress, Spin } from 'antd';
 import {
   DollarOutlined,
   RiseOutlined,
@@ -13,6 +13,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores';
 import QuickActions from '../components/dashboard/QuickActions';
+import { getPortfolioSummary } from '../api/positionsApi';
+import { getStrategies } from '../api/strategiesApi';
+import { getOrders } from '../api/ordersApi';
+import type { PortfolioSummary } from '../types/position';
+import type { Strategy } from '../types/strategy';
+import { StrategyStatus } from '../types/strategy';
 import './DashboardPage.css';
 
 const { Title, Text } = Typography;
@@ -21,14 +27,59 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
 
-  // Mock data - will be replaced with real data from API
-  const accountData = {
-    totalValue: 125680.50,
-    cash: 45230.20,
-    equity: 80450.30,
-    profitLoss: 5680.50,
-    profitLossPercent: 4.73,
-  };
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [orderStats, setOrderStats] = useState({ pending: 0, filled: 0, cancelled: 0 });
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setLoading(true);
+      try {
+        const [summaryData, strategyData, orderData] = await Promise.allSettled([
+          getPortfolioSummary(),
+          getStrategies(),
+          getOrders({ pageSize: 200 }),
+        ]);
+
+        if (summaryData.status === 'fulfilled') setSummary(summaryData.value);
+        if (strategyData.status === 'fulfilled') setStrategies(strategyData.value);
+        if (orderData.status === 'fulfilled') {
+          const orders = orderData.value.orders;
+          setOrderStats({
+            pending: orders.filter(o => o.status === 'submitted').length,
+            filled: orders.filter(o => o.status === 'filled').length,
+            cancelled: orders.filter(o => o.status === 'cancelled').length,
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
+  const runningStrategies = strategies.filter(s => s.status === StrategyStatus.Running).length;
+  const pausedStrategies = strategies.filter(s => s.status === StrategyStatus.Paused).length;
+  const positionCount = summary?.positions.length ?? 0;
+  const profitPositions = summary?.positions.filter(p => p.unrealizedPnL > 0).length ?? 0;
+  const lossPositions = summary?.positions.filter(p => p.unrealizedPnL < 0).length ?? 0;
+  const profitPercent = positionCount > 0 ? (profitPositions / positionCount) * 100 : 0;
+
+  const totalPortfolioValue = summary?.totalPortfolioValue ?? 0;
+  const cashBalance = summary?.cashBalance ?? 0;
+  const totalMarketValue = summary?.totalMarketValue ?? 0;
+  const totalUnrealizedPnL = summary?.totalUnrealizedPnL ?? 0;
+  const totalUnrealizedPnLPercent = summary?.totalUnrealizedPnLPercent ?? 0;
+
+  if (loading) {
+    return (
+      <div className="dashboard-page" style={{ textAlign: 'center', paddingTop: 80 }}>
+        <Spin size="large" tip="加载中..." />
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-page">
@@ -51,7 +102,7 @@ const DashboardPage: React.FC = () => {
           <Card className="stat-card">
             <Statistic
               title="账户总值"
-              value={accountData.totalValue}
+              value={totalPortfolioValue}
               precision={2}
               prefix={<DollarOutlined />}
               valueStyle={{ color: '#1890ff' }}
@@ -62,7 +113,7 @@ const DashboardPage: React.FC = () => {
           <Card className="stat-card">
             <Statistic
               title="可用现金"
-              value={accountData.cash}
+              value={cashBalance}
               precision={2}
               prefix={<DollarOutlined />}
               valueStyle={{ color: '#52c41a' }}
@@ -73,7 +124,7 @@ const DashboardPage: React.FC = () => {
           <Card className="stat-card">
             <Statistic
               title="持仓市值"
-              value={accountData.equity}
+              value={totalMarketValue}
               precision={2}
               prefix={<DollarOutlined />}
             />
@@ -82,12 +133,12 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} xl={6}>
           <Card className="stat-card">
             <Statistic
-              title="盈亏"
-              value={accountData.profitLoss}
+              title="未实现盈亏"
+              value={totalUnrealizedPnL}
               precision={2}
-              prefix={accountData.profitLoss >= 0 ? <RiseOutlined /> : <FallOutlined />}
-              valueStyle={{ color: accountData.profitLoss >= 0 ? '#cf1322' : '#3f8600' }}
-              suffix={`(${accountData.profitLossPercent >= 0 ? '+' : ''}${accountData.profitLossPercent}%)`}
+              prefix={totalUnrealizedPnL >= 0 ? <RiseOutlined /> : <FallOutlined />}
+              valueStyle={{ color: totalUnrealizedPnL >= 0 ? '#cf1322' : '#3f8600' }}
+              suffix={`(${totalUnrealizedPnLPercent >= 0 ? '+' : ''}${totalUnrealizedPnLPercent.toFixed(2)}%)`}
             />
           </Card>
         </Col>
@@ -100,17 +151,19 @@ const DashboardPage: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div className="stat-item">
                 <Text type="secondary">持仓股票数</Text>
-                <Text strong style={{ fontSize: 20 }}>8</Text>
+                <Text strong style={{ fontSize: 20 }}>{positionCount}</Text>
               </div>
               <div className="stat-item">
                 <Text type="secondary">今日盈利股票</Text>
                 <Space>
-                  <Text strong style={{ color: '#cf1322' }}>5</Text>
+                  <Text strong style={{ color: '#cf1322' }}>{profitPositions}</Text>
                   <Text type="secondary">/</Text>
-                  <Text strong style={{ color: '#3f8600' }}>3</Text>
+                  <Text strong style={{ color: '#3f8600' }}>{lossPositions}</Text>
                 </Space>
               </div>
-              <Progress percent={62.5} strokeColor="#cf1322" size="small" showInfo={false} />
+              {positionCount > 0 && (
+                <Progress percent={profitPercent} strokeColor="#cf1322" size="small" showInfo={false} />
+              )}
               <Button type="link" onClick={() => navigate('/portfolio/positions')} style={{ padding: 0 }}>
                 查看详情 →
               </Button>
@@ -123,15 +176,15 @@ const DashboardPage: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div className="stat-item">
                 <Text type="secondary">待成交订单</Text>
-                <Text strong style={{ fontSize: 20 }}>3</Text>
+                <Text strong style={{ fontSize: 20 }}>{orderStats.pending}</Text>
               </div>
               <div className="stat-item">
                 <Text type="secondary">今日已成交</Text>
-                <Text strong style={{ fontSize: 20 }}>7</Text>
+                <Text strong style={{ fontSize: 20 }}>{orderStats.filled}</Text>
               </div>
               <div className="stat-item">
                 <Text type="secondary">今日已取消</Text>
-                <Text strong style={{ fontSize: 20 }}>1</Text>
+                <Text strong style={{ fontSize: 20 }}>{orderStats.cancelled}</Text>
               </div>
               <Button type="link" onClick={() => navigate('/orders/active')} style={{ padding: 0 }}>
                 查看详情 →
@@ -145,15 +198,15 @@ const DashboardPage: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div className="stat-item">
                 <Text type="secondary">运行中策略</Text>
-                <Text strong style={{ fontSize: 20, color: '#52c41a' }}>2</Text>
+                <Text strong style={{ fontSize: 20, color: '#52c41a' }}>{runningStrategies}</Text>
               </div>
               <div className="stat-item">
                 <Text type="secondary">已暂停策略</Text>
-                <Text strong style={{ fontSize: 20 }}>1</Text>
+                <Text strong style={{ fontSize: 20 }}>{pausedStrategies}</Text>
               </div>
               <div className="stat-item">
                 <Text type="secondary">总策略数</Text>
-                <Text strong style={{ fontSize: 20 }}>5</Text>
+                <Text strong style={{ fontSize: 20 }}>{strategies.length}</Text>
               </div>
               <Button type="link" onClick={() => navigate('/strategies/list')} style={{ padding: 0 }}>
                 查看详情 →

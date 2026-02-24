@@ -38,8 +38,9 @@ const ChangePasswordPage: React.FC = () => {
     try {
       // Call change password API
       await changePassword({
-        oldPassword: values.oldPassword,
+        currentPassword: values.oldPassword,
         newPassword: values.newPassword,
+        confirmPassword: values.confirmPassword,
       });
       
       // Show success message

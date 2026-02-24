@@ -20,7 +20,6 @@ import {
   Typography,
   Tag,
   Badge,
-  Pagination,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -69,8 +68,7 @@ const StrategiesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<StrategyStatus | 'all'>('all');
   const [tagFilter, setTagFilter] = useState<string>('');
 
-  // View mode: 'table' | 'card'
-  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+
 
   /**
    * Load strategies from API
@@ -228,24 +226,7 @@ const StrategiesPage: React.FC = () => {
     }
   };
 
-  /**
-   * Get status color
-   * 获取状态颜色
-   */
-  const getStatusColor = (status: StrategyStatus): string => {
-    switch (status) {
-      case 'Running':
-        return 'processing';
-      case 'Stopped':
-        return 'default';
-      case 'Paused':
-        return 'warning';
-      case 'Error':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
+
 
   /**
    * Format percentage

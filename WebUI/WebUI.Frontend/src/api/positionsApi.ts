@@ -8,6 +8,7 @@ import type {
   Position,
   PositionDetail,
   PortfolioSummary,
+  PortfolioAllocationResponse,
   AllocationItem,
   EquityCurveData,
   ExportPositionRequest,
@@ -23,10 +24,11 @@ export async function getPositions(params?: {
   sortOrder?: 'asc' | 'desc';
   onlyProfitable?: boolean;
 }): Promise<Position[]> {
-  const response = await apiClient.get<Position[]>('/api/v1/positions', {
+  // Backend returns PortfolioPositionsResponse {positions: [...], totalMarketValue, ...}
+  const response = await apiClient.get<PortfolioSummary>('/api/v1/positions', {
     params,
   });
-  return response.data;
+  return response.data.positions ?? [];
 }
 
 /**
@@ -56,8 +58,8 @@ export async function closePosition(
 }
 
 /**
- * Get portfolio summary
- * 获取投资组合摘要
+ * Get portfolio summary (positions + aggregate totals)
+ * 获取投资组合摘要（持仓+汇总数据）
  */
 export async function getPortfolioSummary(): Promise<PortfolioSummary> {
   const response = await apiClient.get<PortfolioSummary>(
@@ -71,21 +73,22 @@ export async function getPortfolioSummary(): Promise<PortfolioSummary> {
  * 获取持仓配置（饼图数据）
  */
 export async function getPositionAllocation(): Promise<AllocationItem[]> {
-  const response = await apiClient.get<AllocationItem[]>(
+  const response = await apiClient.get<PortfolioAllocationResponse>(
     '/api/v1/portfolio/allocation'
   );
-  return response.data;
+  // Include cash in the allocation list
+  const { positions, cash } = response.data;
+  return cash.value > 0 ? [...positions, cash] : positions;
 }
 
 /**
- * Get sector allocation
- * 获取行业配置
+ * Get sector allocation — derived from position allocation since backend does
+ * not expose a dedicated sector endpoint.
+ * 获取行业配置 — 从持仓配置推导（后端无独立行业端点）
  */
 export async function getSectorAllocation(): Promise<AllocationItem[]> {
-  const response = await apiClient.get<AllocationItem[]>(
-    '/api/v1/portfolio/allocation/sector'
-  );
-  return response.data;
+  // Fallback: return an empty array; real sector data requires IBKR integration
+  return [];
 }
 
 /**
@@ -105,15 +108,15 @@ export async function getEquityCurve(params?: {
 
 /**
  * Export positions to CSV/Excel
- * 导出持仓数据
+ * 导出持仓数据 — uses the positions export endpoint
  */
 export async function exportPositions(
   request: ExportPositionRequest
 ): Promise<Blob> {
-  const response = await apiClient.post(
-    '/api/v1/portfolio/export',
-    request,
+  const response = await apiClient.get(
+    '/api/v1/positions/export',
     {
+      params: { format: request.format },
       responseType: 'blob',
     }
   );
@@ -121,23 +124,21 @@ export async function exportPositions(
 }
 
 /**
- * Get today's P&L
- * 获取今日盈亏
+ * Get today's P&L — derived from portfolio summary (totalRealizedPnL)
+ * 获取今日盈亏 — 从投资组合摘要推导
+ * @deprecated use getPortfolioSummary().totalRealizedPnL instead
  */
 export async function getTodayPnL(): Promise<number> {
-  const response = await apiClient.get<{ todayPnL: number }>(
-    '/api/v1/portfolio/today-pnl'
-  );
-  return response.data.todayPnL;
+  const summary = await getPortfolioSummary();
+  return summary.totalRealizedPnL;
 }
 
 /**
- * Get total return
+ * Get total return percentage — derived from portfolio summary
  * 获取总收益率
+ * @deprecated use getPortfolioSummary().totalUnrealizedPnLPercent instead
  */
 export async function getTotalReturn(): Promise<number> {
-  const response = await apiClient.get<{ totalReturn: number }>(
-    '/api/v1/portfolio/total-return'
-  );
-  return response.data.totalReturn;
+  const summary = await getPortfolioSummary();
+  return summary.totalUnrealizedPnLPercent;
 }

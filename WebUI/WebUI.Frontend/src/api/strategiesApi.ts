@@ -27,10 +27,10 @@ export async function getStrategies(params?: {
   tags?: string[];
   includeArchived?: boolean;
 }): Promise<Strategy[]> {
-  const response = await apiClient.get<Strategy[]>('/api/v1/strategies', {
+  const response = await apiClient.get<{ strategies: Strategy[]; totalCount: number }>('/api/v1/strategies', {
     params,
   });
-  return response.data;
+  return response.data.strategies ?? [];
 }
 
 /**
@@ -153,10 +153,10 @@ export async function restoreStrategyVersion(
 export async function getStrategyExecutions(
   strategyId: string
 ): Promise<StrategyExecution[]> {
-  const response = await apiClient.get<StrategyExecution[]>(
+  const response = await apiClient.get<{ executions: StrategyExecution[]; totalCount: number }>(
     `/api/v1/strategies/${strategyId}/executions`
   );
-  return response.data;
+  return response.data.executions ?? [];
 }
 
 /**

@@ -89,19 +89,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       getItem('策略列表', '/strategies/list'),
       getItem('新建策略', '/strategies/create'),
     ]),
-    getItem('回测', '/backtesting', <BarChartOutlined />, [
-      getItem('回测列表', '/backtesting/list'),
-      getItem('新建回测', '/backtesting/create'),
+    getItem('回测', '/backtests', <BarChartOutlined />, [
+      getItem('回测列表', '/backtests/list'),
+      getItem('新建回测', '/backtests/new'),
+      getItem('对比回测', '/backtests/compare'),
     ]),
     getItem('风控', '/risk', <SafetyOutlined />, [
-      getItem('风险指标', '/risk/metrics'),
+      getItem('风险指标', '/risk/dashboard'),
       getItem('风控配置', '/risk/config'),
     ]),
-    getItem('设置', '/settings', <SettingOutlined />, [
-      getItem('账户设置', '/settings/account'),
-      getItem('IBKR 配置', '/settings/ibkr'),
-      getItem('系统配置', '/settings/system'),
-    ]),
+    getItem('设置', '/settings', <SettingOutlined />),
   ];
 
   // Help menu item - shown at the bottom
@@ -131,9 +128,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (path.startsWith('/portfolio')) openKeys.push('/portfolio');
     if (path.startsWith('/orders')) openKeys.push('/orders');
     if (path.startsWith('/strategies')) openKeys.push('/strategies');
-    if (path.startsWith('/backtesting')) openKeys.push('/backtesting');
+    if (path.startsWith('/backtests')) openKeys.push('/backtests');
     if (path.startsWith('/risk')) openKeys.push('/risk');
-    if (path.startsWith('/settings')) openKeys.push('/settings');
     
     return openKeys;
   };

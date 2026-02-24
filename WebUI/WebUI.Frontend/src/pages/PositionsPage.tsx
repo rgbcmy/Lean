@@ -374,12 +374,12 @@ const PositionsPage: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
-                title="今日盈亏"
-                value={Math.abs(summary.todayPnL)}
+                title="已实现盈亏"
+                value={Math.abs(summary.totalRealizedPnL)}
                 precision={2}
-                prefix={summary.todayPnL >= 0 ? '+$' : '-$'}
+                prefix={summary.totalRealizedPnL >= 0 ? '+$' : '-$'}
                 valueStyle={{
-                  color: summary.todayPnL >= 0 ? '#3f8600' : '#cf1322',
+                  color: summary.totalRealizedPnL >= 0 ? '#3f8600' : '#cf1322',
                 }}
               />
             </Card>
@@ -388,7 +388,7 @@ const PositionsPage: React.FC = () => {
             <Card>
               <Statistic
                 title="持仓数量"
-                value={summary.positionCount}
+                value={summary.positions.length}
                 suffix="个"
               />
             </Card>

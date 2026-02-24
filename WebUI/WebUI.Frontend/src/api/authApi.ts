@@ -16,27 +16,25 @@ export interface LoginRequest {
 }
 
 /**
- * Login response
- * 登录响应
+ * Login response (matches actual backend shape)
+ * 登录响应（与后端实际数据结构匹配）
  */
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  user: {
-    id: number;
-    username: string;
-    email?: string;
-    role: string;
-  };
+  expiresAt: string;
+  userId: number;
+  username: string;
 }
 
 /**
- * Change password request payload
- * 修改密码请求载荷
+ * Change password request payload (matches backend ChangePasswordRequest model)
+ * 修改密码请求载荷（与后端模型一致）
  */
 export interface ChangePasswordRequest {
-  oldPassword: string;
+  currentPassword: string;
   newPassword: string;
+  confirmPassword: string;
 }
 
 /**
