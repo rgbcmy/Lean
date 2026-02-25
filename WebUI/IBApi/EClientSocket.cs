@@ -229,10 +229,15 @@ namespace IBApi
 #if NETCOREAPP3_1
             if (on)
             {
-                tcpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, on);
-                tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, Math.Max(keepAliveTime / 1000, 1));
-                tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, Math.Max(keepAliveInterval / 1000, 1));
-                tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 5);
+                tcpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                // Cast to int: SetSocketOption has no uint overload; uint would box to Object and throw.
+                tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, (int)Math.Max(keepAliveTime / 1000, 1u));
+                tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, (int)Math.Max(keepAliveInterval / 1000, 1u));
+                // TcpKeepAliveRetryCount (TCP_KEEPCNT) is Linux/macOS only; skip on Windows.
+                if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+                {
+                    tcpClient.Client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 5);
+                }
             }
 #else
             int size = System.Runtime.InteropServices.Marshal.SizeOf(new uint());
