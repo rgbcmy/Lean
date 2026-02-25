@@ -231,6 +231,10 @@ builder.Services.AddSingleton<IIbkrConnectionService>(sp => sp.GetRequiredServic
 builder.Services.AddHostedService(sp => sp.GetRequiredService<IbkrConnectionService>());
 builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
 
+// Register IBKR TWS API client and position sync service
+builder.Services.AddSingleton<IIbkrTwsApiClient, IbkrTwsApiClient>();
+builder.Services.AddScoped<IIbkrPositionSyncService, IbkrPositionSyncService>();
+
 // Register SignalR push services
 builder.Services.AddSingleton<IMarketDataPushService, WebUI.API.Services.MarketDataPushService>();
 builder.Services.AddSingleton<IOrderPushService, WebUI.API.Services.OrderPushService>();

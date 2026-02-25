@@ -16,9 +16,9 @@ import {
   Tag,
 } from 'antd';
 import type { FormInstance } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ApiOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, ApiOutlined, DisconnectOutlined, SyncOutlined } from '@ant-design/icons';
 import { testIBKRConnection } from '../../api/settingsApi';
-import { getIbkrStatus, connectIbkr, disconnectIbkr } from '../../api/ibkrApi';
+import { getIbkrStatus, connectIbkr, disconnectIbkr, syncIbkrPositions } from '../../api/ibkrApi';
 import { useIBKRStore } from '../../stores/ibkrStore';
 
 interface IBKRConnectionFormProps {
@@ -29,6 +29,7 @@ const IBKRConnectionForm: React.FC<IBKRConnectionFormProps> = ({ form }) => {
   const [testing, setTesting] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const { connectionStatus, setConnected, setDisconnected, setConnecting: storeSetConnecting } = useIBKRStore();
 
@@ -92,6 +93,23 @@ const IBKRConnectionForm: React.FC<IBKRConnectionFormProps> = ({ form }) => {
       message.error(error.response?.data?.message || '断开连接失败');
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  // Sync positions from IBKR into the local database
+  const handleSyncPositions = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncIbkrPositions();
+      if (result.success) {
+        message.success(`同步成功：${result.positionsSynced} 个持仓已同步（新增 ${result.positionsAdded}，更新 ${result.positionsUpdated}）`);
+      } else {
+        message.error(`同步失败：${result.message}`);
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '持仓同步失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -246,14 +264,24 @@ const IBKRConnectionForm: React.FC<IBKRConnectionFormProps> = ({ form }) => {
               连接 IBKR
             </Button>
           ) : (
-            <Button
-              danger
-              icon={<DisconnectOutlined />}
-              onClick={handleDisconnect}
-              loading={disconnecting}
-            >
-              断开连接
-            </Button>
+            <>
+              <Button
+                danger
+                icon={<DisconnectOutlined />}
+                onClick={handleDisconnect}
+                loading={disconnecting}
+              >
+                断开连接
+              </Button>
+              <Button
+                type="primary"
+                icon={<SyncOutlined />}
+                onClick={handleSyncPositions}
+                loading={syncing}
+              >
+                同步持仓数据
+              </Button>
+            </>
           )}
           <Button
             onClick={handleTestConnection}

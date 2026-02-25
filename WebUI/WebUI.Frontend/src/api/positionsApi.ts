@@ -24,9 +24,22 @@ export async function getPositions(params?: {
   sortOrder?: 'asc' | 'desc';
   onlyProfitable?: boolean;
 }): Promise<Position[]> {
+  // Map frontend param names / sort values to backend expectations:
+  //   symbol       → symbolFilter
+  //   sortOrder    → sortDirection
+  //   sortBy pnl   → UnrealizedPnL  |  value → MarketValue  |  symbol → Symbol
+  const sortByMap: Record<string, string> = { pnl: 'UnrealizedPnL', value: 'MarketValue', symbol: 'Symbol' };
+  const backendParams: Record<string, unknown> = {};
+  if (params) {
+    if (params.symbol) backendParams.symbolFilter = params.symbol;
+    if (params.sortBy) backendParams.sortBy = sortByMap[params.sortBy] ?? 'Symbol';
+    if (params.sortOrder) backendParams.sortDirection = params.sortOrder;
+    if (params.onlyProfitable !== undefined) backendParams.onlyProfitable = params.onlyProfitable;
+  }
+
   // Backend returns PortfolioPositionsResponse {positions: [...], totalMarketValue, ...}
   const response = await apiClient.get<PortfolioSummary>('/api/v1/positions', {
-    params,
+    params: backendParams,
   });
   return response.data.positions ?? [];
 }
@@ -99,11 +112,22 @@ export async function getEquityCurve(params?: {
   startDate?: string;
   endDate?: string;
 }): Promise<EquityCurveData[]> {
-  const response = await apiClient.get<EquityCurveData[]>(
-    '/api/v1/portfolio/equity-curve',
-    { params }
-  );
-  return response.data;
+  // Backend returns EquityCurveResponse { dataPoints: [...], initialEquity, currentEquity, ... }
+  const response = await apiClient.get<{
+    dataPoints: Array<{ date: string; equity: number; cash: number; positionsValue: number; cumulativeReturn: number }>;
+    initialEquity: number;
+    currentEquity: number;
+    totalReturn: number;
+    maxDrawdown: number;
+  }>('/api/v1/portfolio/equity-curve', { params });
+
+  const dataPoints = response.data?.dataPoints ?? [];
+  return dataPoints.map(p => ({
+    date: p.date,
+    equity: p.equity,
+    deposits: 0,    // not tracked at this level
+    withdrawals: 0,
+  }));
 }
 
 /**

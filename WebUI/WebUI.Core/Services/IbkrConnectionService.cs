@@ -1,161 +1,294 @@
-/*
- * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
- * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
+﻿/*
+ * IBKR Connection Management Service
+ * 使用官方 IBApi 管理到 TWS/Gateway 的长连接生命周期
+ * Manages the TWS/Gateway connection lifecycle using the official IBApi client.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
+ * 职责 / Responsibilities:
+ *   - 连接 / 断开 / 自动重连（指数退避）
+ *   - 心跳监控（每 10 秒 reqCurrentTime）
+ *   - 对上层暴露账户/持仓/订单/行情/历史数据全套 API
+ *   - 代理 IbkrTwsApiClient 的所有流式事件
+ */
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using IBApi;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WebUI.Core.Models;
 
 namespace WebUI.Core.Services
 {
+    // 
+    // IIbkrConnectionService  对外接口（完整版）
+    // 
+
     /// <summary>
-    /// Interface for IBKR connection management service
+    /// High-level IBKR connection service.
+    /// Manages connection lifecycle and exposes the full TWS API surface.
+    ///
+    /// 高层 IBKR 连接服务。
+    /// 管理连接生命周期并暴露完整的 TWS API 功能。
     /// </summary>
     public interface IIbkrConnectionService
     {
-        /// <summary>
-        /// Current connection state
-        /// </summary>
+        //  State 
+
+        /// <summary>Current connection state snapshot. 当前连接状态快照。</summary>
         IbkrConnectionState ConnectionState { get; }
 
         /// <summary>
-        /// Connect to IBKR TWS/Gateway
+        /// The active connection configuration (null when disconnected).
+        /// 当前连接配置（未连接时为 null）。
+        /// </summary>
+        IbkrConnectionConfig? CurrentConfig { get; }
+
+        //  Lifecycle 
+
+        /// <summary>
+        /// Connect to IBKR TWS/Gateway using the given configuration.
+        /// 使用指定配置连接到 IBKR TWS/Gateway。
         /// </summary>
         Task<bool> ConnectAsync(IbkrConnectionConfig config, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Disconnect from IBKR
-        /// </summary>
+        /// <summary>Gracefully disconnect. 优雅断开连接。</summary>
         Task DisconnectAsync();
 
-        /// <summary>
-        /// Get account summary
-        /// </summary>
-        Task<IbkrAccountSummary?> GetAccountSummaryAsync();
+        //  Account 
 
         /// <summary>
-        /// Get connection diagnostics
+        /// Get structured account summary (net liq, buying power, cash, etc.).
+        /// 获取账户摘要（净值、购买力、现金等）。
         /// </summary>
+        Task<IbkrAccountSummary?> GetAccountSummaryAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get raw account update key-value pairs (full detail).
+        /// 获取原始账户更新键值对（完整详情）。
+        /// </summary>
+        Task<List<IbkrAccountValue>> GetAccountUpdatesAsync(CancellationToken cancellationToken = default);
+
+        //  Positions 
+
+        /// <summary>Fetch all portfolio positions. 获取所有持仓。</summary>
+        Task<List<IbkrPositionData>> GetPositionsAsync(CancellationToken cancellationToken = default);
+
+        //  Orders 
+
+        /// <summary>
+        /// Place an order. Returns the result containing the assigned order ID.
+        /// 下单。返回包含订单 ID 的结果。
+        /// </summary>
+        Task<IbkrPlaceOrderResult> PlaceOrderAsync(Contract contract, Order order, CancellationToken cancellationToken = default);
+
+        /// <summary>Cancel an open order. 撤销订单。</summary>
+        void CancelOrder(int orderId);
+
+        /// <summary>Get all open orders for this client session. 获取本 session 的未成交订单。</summary>
+        Task<List<IbkrOrderInfo>> GetOpenOrdersAsync(CancellationToken cancellationToken = default);
+
+        //  Contracts 
+
+        /// <summary>Validate a contract and fetch its details from TWS. 验证合约并获取详情。</summary>
+        Task<List<ContractDetails>> GetContractDetailsAsync(Contract contract, CancellationToken cancellationToken = default);
+
+        //  Historical Data 
+
+        /// <summary>
+        /// Fetch historical OHLCV bars.
+        /// barSizeSetting examples: "1 min", "5 mins", "1 hour", "1 day".
+        /// durationStr examples: "1 D", "1 W", "1 M", "1 Y".
+        /// 获取历史 K 线数据。
+        /// </summary>
+        Task<List<IbkrBar>> GetHistoricalDataAsync(
+            Contract contract,
+            string endDateTime,
+            string durationStr,
+            string barSizeSetting,
+            string whatToShow = "TRADES",
+            int useRTH = 1,
+            CancellationToken cancellationToken = default);
+
+        //  Market Data 
+
+        /// <summary>
+        /// Subscribe to real-time Level 1 market data.
+        /// Returns reqId for later unsubscription.
+        /// 订阅实时行情，返回 reqId 用于取消订阅。
+        /// </summary>
+        int SubscribeMarketData(Contract contract, string genericTickList = "");
+
+        /// <summary>Unsubscribe from a real-time market data stream. 取消行情订阅。</summary>
+        void UnsubscribeMarketData(int reqId);
+
+        //  Diagnostics 
+
+        /// <summary>Get detailed diagnostics including error history. 获取诊断信息（含错误历史）。</summary>
         IbkrDiagnostics GetDiagnostics();
 
-        /// <summary>
-        /// Event raised when connection state changes
-        /// </summary>
+        //  Events 
+
+        /// <summary>Fired when connection status changes. 连接状态改变时触发。</summary>
         event EventHandler<IbkrConnectionState>? ConnectionStateChanged;
+
+        /// <summary>Fired on every real-time market data tick. 收到行情 tick 时触发。</summary>
+        event Action<IbkrMarketDataTick>? OnMarketDataTick;
+
+        /// <summary>Fired when an order status changes (fill, cancel, etc.). 订单状态变化时触发。</summary>
+        event Action<IbkrOrderInfo>? OnOrderStatusChanged;
+
+        /// <summary>Fired when a position update is received. 持仓更新时触发。</summary>
+        event Action<IbkrPositionData>? OnPositionUpdated;
     }
 
+    // 
+    // IbkrConnectionService  实现
+    // 
+
     /// <summary>
-    /// IBKR connection management service with health monitoring and auto-reconnect
+    /// Background service that manages a persistent connection to IBKR TWS/Gateway.
+    ///
+    /// Features:
+    ///    Connect / Disconnect with timeout
+    ///    Heartbeat via reqCurrentTime every 10 seconds
+    ///    Exponential-backoff auto-reconnect (1s  2s  4s    max 60s)
+    ///    Full account/position/order/market-data/historical-data API surface
+    ///    Error history (last 50 errors)
+    ///    Request rate limiting (50 req/s IBKR limit)
+    ///
+    /// 功能：
+    ///    带超时的连接 / 断开
+    ///    每 10 秒通过 reqCurrentTime 进行心跳检测
+    ///    指数退避自动重连（最大 60 秒）
+    ///    完整的账户/持仓/订单/行情/历史数据 API
+    ///    错误历史记录（最近 50 条）
+    ///    请求频率限制（IBKR 上限 50 req/s）
     /// </summary>
     public class IbkrConnectionService : BackgroundService, IIbkrConnectionService
     {
         private readonly ILogger<IbkrConnectionService> _logger;
+        private readonly IIbkrTwsApiClient _twsClient;
+
         private IbkrConnectionConfig? _config;
-        private IbkrConnectionState _connectionState;
-        private readonly ConcurrentQueue<IbkrErrorRecord> _errorHistory;
+        private IbkrConnectionState   _connectionState;
+        private readonly ConcurrentQueue<IbkrErrorRecord> _errorHistory = new();
         private Timer? _heartbeatTimer;
-        private Timer? _reconnectTimer;
-        private readonly SemaphoreSlim _connectionLock;
-        private CancellationTokenSource? _healthCheckCts;
+        private readonly SemaphoreSlim _connectionLock = new(1, 1);
         private int _reconnectAttempts;
+        private bool _reconnecting;
 
         // Rate limiting
-        private readonly ConcurrentQueue<DateTime> _requestTimestamps;
+        private readonly ConcurrentQueue<DateTime> _requestTimestamps = new();
         private const int MaxRequestsPerSecond = 50;
 
-        /// <summary>
-        /// Current connection state
-        /// </summary>
+        //  Public properties 
+
+        /// <inheritdoc />
         public IbkrConnectionState ConnectionState => _connectionState;
 
-        /// <summary>
-        /// Event raised when connection state changes
-        /// </summary>
+        /// <inheritdoc />
+        public IbkrConnectionConfig? CurrentConfig => _config;
+
+        //  Events 
+
+        /// <inheritdoc />
         public event EventHandler<IbkrConnectionState>? ConnectionStateChanged;
 
-        public IbkrConnectionService(ILogger<IbkrConnectionService> logger)
+        /// <inheritdoc />
+        public event Action<IbkrMarketDataTick>? OnMarketDataTick;
+
+        /// <inheritdoc />
+        public event Action<IbkrOrderInfo>? OnOrderStatusChanged;
+
+        /// <inheritdoc />
+        public event Action<IbkrPositionData>? OnPositionUpdated;
+
+        //  Constructor 
+
+        public IbkrConnectionService(
+            ILogger<IbkrConnectionService> logger,
+            IIbkrTwsApiClient twsClient)
         {
-            _logger = logger;
+            _logger     = logger;
+            _twsClient  = twsClient;
+
             _connectionState = new IbkrConnectionState
             {
                 Status = IbkrConnectionStatus.Disconnected
             };
-            _errorHistory = new ConcurrentQueue<IbkrErrorRecord>();
-            _connectionLock = new SemaphoreSlim(1, 1);
-            _requestTimestamps = new ConcurrentQueue<DateTime>();
+
+            // Wire streaming events from the low-level client
+            _twsClient.OnMarketDataTick    += tick  => OnMarketDataTick?.Invoke(tick);
+            _twsClient.OnOrderStatusChanged+= order => OnOrderStatusChanged?.Invoke(order);
+            _twsClient.OnPositionUpdated   += pos   => OnPositionUpdated?.Invoke(pos);
+            _twsClient.OnConnectionLost    += reason => HandleConnectionLost(reason);
+            _twsClient.OnError             += (id, code, msg) => RecordError(code, msg);
         }
 
-        /// <summary>
-        /// Connect to IBKR TWS/Gateway
-        /// </summary>
-        public async Task<bool> ConnectAsync(IbkrConnectionConfig config, CancellationToken cancellationToken = default)
+        // 
+        // Lifecycle
+        // 
+
+        /// <inheritdoc />
+        public async Task<bool> ConnectAsync(
+            IbkrConnectionConfig config,
+            CancellationToken cancellationToken = default)
         {
-            if (config == null)
-            {
-                throw new ArgumentNullException(nameof(config));
-            }
+            if (config == null) throw new ArgumentNullException(nameof(config));
 
             await _connectionLock.WaitAsync(cancellationToken);
             try
             {
-                _logger.LogInformation("Attempting to connect to IBKR at {Host}:{Port} (Account: {AccountId}, Type: {AccountType})",
+                _logger.LogInformation(
+                    "Connecting to IBKR at {Host}:{Port} account={AccountId} type={AccountType}",
                     config.Host, config.Port, config.AccountId, config.AccountType);
 
                 _config = config;
                 UpdateConnectionState(IbkrConnectionStatus.Connecting);
 
-                // TCP probe to verify TWS/Gateway is actually listening
-                var connected = await AttemptConnectionAsync(config, cancellationToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(config.TimeoutSeconds));
 
-                if (connected)
-                {
-                    _connectionState.AccountId = config.AccountId;
-                    _connectionState.AccountType = config.AccountType;
-                    _connectionState.ConnectedAt = DateTime.UtcNow;
-                    _connectionState.LastHeartbeatAt = DateTime.UtcNow;
-                    _connectionState.TwsVersion = "Unknown"; // Will be populated from actual connection
-                    _connectionState.ApiVersion = "Unknown";
-                    _reconnectAttempts = 0;
+                // Delegate to the real IBApi client
+                await _twsClient.ConnectAsync(config.Host, config.Port, config.ClientId, cts.Token);
 
-                    UpdateConnectionState(IbkrConnectionStatus.Connected);
-                    StartHeartbeatMonitoring();
+                // Confirm connection and capture server version
+                _connectionState.TwsVersion = _twsClient.ServerVersion.ToString();
+                _connectionState.ApiVersion  = "Official IBApi";
+                _connectionState.AccountId   = config.AccountId;
+                _connectionState.AccountType = config.AccountType;
+                _connectionState.ConnectedAt = DateTime.UtcNow;
+                _connectionState.LastHeartbeatAt = DateTime.UtcNow;
+                _reconnectAttempts = 0;
+                _reconnecting      = false;
 
-                    _logger.LogInformation("Successfully connected to IBKR (Account: {AccountId})", config.AccountId);
-                    return true;
-                }
-                else
-                {
-                    var error = $"Failed to connect to IBKR at {config.Host}:{config.Port}";
-                    RecordError(500, error);
-                    UpdateConnectionState(IbkrConnectionStatus.Error, error);
-                    _logger.LogWarning(error);
-                    return false;
-                }
+                UpdateConnectionState(IbkrConnectionStatus.Connected);
+                StartHeartbeat();
+
+                _logger.LogInformation(
+                    "Connected to IBKR TWS v{TwsVer} (account={AccountId})",
+                    _connectionState.TwsVersion, config.AccountId);
+
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                var msg = $"Connection timeout after {config.TimeoutSeconds}s  TWS/Gateway not responding at {config.Host}:{config.Port}";
+                _logger.LogWarning(msg);
+                RecordError(408, msg);
+                UpdateConnectionState(IbkrConnectionStatus.Error, msg);
+                return false;
             }
             catch (Exception ex)
             {
-                var error = $"Connection error: {ex.Message}";
-                RecordError(999, error, ex.ToString());
-                UpdateConnectionState(IbkrConnectionStatus.Error, error);
+                var msg = $"Connection failed: {ex.Message}";
                 _logger.LogError(ex, "Failed to connect to IBKR");
+                RecordError(500, msg, ex.ToString());
+                UpdateConnectionState(IbkrConnectionStatus.Error, msg);
                 return false;
             }
             finally
@@ -164,32 +297,20 @@ namespace WebUI.Core.Services
             }
         }
 
-        /// <summary>
-        /// Disconnect from IBKR
-        /// </summary>
+        /// <inheritdoc />
         public async Task DisconnectAsync()
         {
             await _connectionLock.WaitAsync();
             try
             {
                 _logger.LogInformation("Disconnecting from IBKR");
-
-                StopHeartbeatMonitoring();
-                StopReconnectTimer();
-
-                // TODO: Implement actual disconnection from Lean engine
-                await Task.Delay(100);
-
+                StopHeartbeat();
+                _reconnecting = false;
+                _twsClient.Disconnect();
                 UpdateConnectionState(IbkrConnectionStatus.Disconnected);
-                _connectionState.ConnectedAt = null;
+                _connectionState.ConnectedAt    = null;
                 _connectionState.LastHeartbeatAt = null;
-
                 _logger.LogInformation("Disconnected from IBKR");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during disconnect");
-                throw;
             }
             finally
             {
@@ -197,348 +318,432 @@ namespace WebUI.Core.Services
             }
         }
 
-        /// <summary>
-        /// Get account summary
-        /// </summary>
-        public async Task<IbkrAccountSummary?> GetAccountSummaryAsync()
+        // 
+        // Account
+        // 
+
+        /// <inheritdoc />
+        public async Task<IbkrAccountSummary?> GetAccountSummaryAsync(
+            CancellationToken cancellationToken = default)
         {
-            if (_connectionState.Status != IbkrConnectionStatus.Connected)
-            {
-                _logger.LogWarning("Cannot get account summary: not connected");
-                return null;
-            }
+            EnsureConnected("GetAccountSummaryAsync");
+            await RateLimitAsync(cancellationToken);
 
             try
             {
-                await RateLimitAsync();
+                // Request all available account summary tags via the official API helper
+                var values = await _twsClient.GetAccountSummaryAsync(
+                    group: "All",
+                    tags: AccountSummaryTags.GetAllTags(),
+                    ct: cancellationToken);
 
-                // TODO: Implement actual account query via IPC to Lean engine
-                // This will use Lean's IBrokerage.GetCashBalance() and GetAccountHoldings()
-                
-                // Placeholder data
+                // Parse common tags into the structured model
                 var summary = new IbkrAccountSummary
                 {
-                    AccountId = _connectionState.AccountId,
-                    AccountType = _connectionState.AccountType,
-                    BaseCurrency = "USD",
-                    CashBalance = 100000m,
-                    NetLiquidation = 100000m,
-                    AvailableFunds = 100000m,
-                    BuyingPower = 400000m, // 4x margin for stocks
-                    GrossPositionValue = 0m,
-                    MarginRequirement = 0m,
-                    ExcessLiquidity = 100000m,
-                    UpdatedAt = DateTime.UtcNow
+                    AccountId   = _config!.AccountId,
+                    AccountType = _config.AccountType,
+                    UpdatedAt   = DateTime.UtcNow
                 };
+
+                foreach (var v in values)
+                {
+                    if (!decimal.TryParse(v.Val,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out decimal d)) continue;
+
+                    switch (v.Key)
+                    {
+                        case "NetLiquidation":    summary.NetLiquidation    = d; break;
+                        case "TotalCashValue":    summary.CashBalance       = d; break;
+                        case "AvailableFunds":    summary.AvailableFunds    = d; break;
+                        case "BuyingPower":       summary.BuyingPower       = d; break;
+                        case "GrossPositionValue":summary.GrossPositionValue = d; break;
+                        case "MaintMarginReq":    summary.MarginRequirement = d; break;
+                        case "ExcessLiquidity":   summary.ExcessLiquidity   = d; break;
+                    }
+
+                    if (v.Key == "NetLiquidation" && !string.IsNullOrEmpty(v.Currency))
+                        summary.BaseCurrency = v.Currency;
+                }
 
                 return summary;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get account summary");
+                _logger.LogError(ex, "GetAccountSummaryAsync failed");
                 RecordError(998, "Failed to get account summary", ex.Message);
                 return null;
             }
         }
 
-        /// <summary>
-        /// Get connection diagnostics
-        /// </summary>
+        /// <inheritdoc />
+        public async Task<List<IbkrAccountValue>> GetAccountUpdatesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("GetAccountUpdatesAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.GetAccountUpdatesAsync(_config!.AccountId, cancellationToken);
+        }
+
+        // 
+        // Positions
+        // 
+
+        /// <inheritdoc />
+        public async Task<List<IbkrPositionData>> GetPositionsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("GetPositionsAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.GetPositionsAsync(cancellationToken);
+        }
+
+        // 
+        // Orders
+        // 
+
+        /// <inheritdoc />
+        public async Task<IbkrPlaceOrderResult> PlaceOrderAsync(
+            Contract contract, Order order,
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("PlaceOrderAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.PlaceOrderAsync(contract, order, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public void CancelOrder(int orderId)
+        {
+            EnsureConnected("CancelOrder");
+            _twsClient.CancelOrder(orderId);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<IbkrOrderInfo>> GetOpenOrdersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("GetOpenOrdersAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.GetOpenOrdersAsync(cancellationToken);
+        }
+
+        // 
+        // Contracts
+        // 
+
+        /// <inheritdoc />
+        public async Task<List<ContractDetails>> GetContractDetailsAsync(
+            Contract contract,
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("GetContractDetailsAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.GetContractDetailsAsync(contract, cancellationToken);
+        }
+
+        // 
+        // Historical Data
+        // 
+
+        /// <inheritdoc />
+        public async Task<List<IbkrBar>> GetHistoricalDataAsync(
+            Contract contract,
+            string endDateTime,
+            string durationStr,
+            string barSizeSetting,
+            string whatToShow = "TRADES",
+            int useRTH = 1,
+            CancellationToken cancellationToken = default)
+        {
+            EnsureConnected("GetHistoricalDataAsync");
+            await RateLimitAsync(cancellationToken);
+            return await _twsClient.GetHistoricalDataAsync(
+                contract, endDateTime, durationStr,
+                barSizeSetting, whatToShow, useRTH, cancellationToken);
+        }
+
+        // 
+        // Market Data
+        // 
+
+        /// <inheritdoc />
+        public int SubscribeMarketData(Contract contract, string genericTickList = "")
+        {
+            EnsureConnected("SubscribeMarketData");
+            return _twsClient.SubscribeMarketData(contract, genericTickList);
+        }
+
+        /// <inheritdoc />
+        public void UnsubscribeMarketData(int reqId) =>
+            _twsClient.UnsubscribeMarketData(reqId);
+
+        // 
+        // Diagnostics
+        // 
+
+        /// <inheritdoc />
         public IbkrDiagnostics GetDiagnostics()
         {
-            // Mask sensitive data in configuration
-            var maskedConfig = _config != null ? new IbkrConnectionConfig
+            var maskedConfig = _config == null ? null : new IbkrConnectionConfig
             {
-                Host = _config.Host,
-                Port = _config.Port,
-                AccountId = MaskAccountId(_config.AccountId),
-                AccountType = _config.AccountType,
-                TimeoutSeconds = _config.TimeoutSeconds,
+                Host                = _config.Host,
+                Port                = _config.Port,
+                AccountId           = MaskAccountId(_config.AccountId),
+                AccountType         = _config.AccountType,
+                ClientId            = _config.ClientId,
+                TimeoutSeconds      = _config.TimeoutSeconds,
                 EnableAutoReconnect = _config.EnableAutoReconnect,
-                MaxReconnectAttempts = _config.MaxReconnectAttempts
-            } : null;
+                MaxReconnectAttempts= _config.MaxReconnectAttempts
+            };
 
             return new IbkrDiagnostics
             {
                 ConnectionState = _connectionState,
-                ErrorHistory = _errorHistory.ToList(),
-                Configuration = maskedConfig,
+                ErrorHistory    = _errorHistory.ToList(),
+                Configuration   = maskedConfig,
                 RateLimitStatus = new IbkrRateLimitStatus
                 {
                     CurrentRequestsPerSecond = GetCurrentRequestRate(),
-                    MaxRequestsPerSecond = MaxRequestsPerSecond,
-                    QueuedRequests = 0 // Will be implemented with actual request queue
+                    MaxRequestsPerSecond     = MaxRequestsPerSecond,
+                    QueuedRequests           = 0
                 }
             };
         }
 
+        // 
+        // Background Service
+        // 
+
         /// <summary>
-        /// Background service execution
+        /// Background loop: periodically cleans up old rate-limit timestamps.
+        /// 后台循环：定期清理过期的限速时间戳。
         /// </summary>
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("IBKR Connection Service started");
-
+            _logger.LogInformation("IbkrConnectionService background loop started");
             while (!stoppingToken.IsCancellationRequested)
             {
-                // Clean up old request timestamps for rate limiting
                 CleanupOldRequestTimestamps();
-
                 await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
-
-            _logger.LogInformation("IBKR Connection Service stopped");
+            _logger.LogInformation("IbkrConnectionService background loop stopped");
         }
 
+        // 
+        // Heartbeat
+        // 
+
         /// <summary>
-        /// Attempt connection to IBKR
+        /// Start the heartbeat timer (10-second interval).
+        /// 启动心跳定时器（每 10 秒）。
         /// </summary>
-        private async Task<bool> AttemptConnectionAsync(IbkrConnectionConfig config, CancellationToken cancellationToken)
+        private void StartHeartbeat()
         {
-            // Real TCP probe — verifies TWS/Gateway is actually listening on the specified port
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
-            try
-            {
-                using var tcp = new TcpClient();
-                var connectTask = tcp.ConnectAsync(config.Host, config.Port);
-                var completed = await Task.WhenAny(connectTask, Task.Delay(Timeout.Infinite, cts.Token));
-
-                if (completed == connectTask && connectTask.IsCompletedSuccessfully)
-                {
-                    _logger.LogInformation("TCP probe succeeded: {Host}:{Port}", config.Host, config.Port);
-                    return true;
-                }
-
-                _logger.LogWarning("TCP probe timed out (5s): {Host}:{Port} — TWS/Gateway not responding", config.Host, config.Port);
-                return false;
-            }
-            catch (SocketException ex)
-            {
-                _logger.LogWarning(ex, "TCP probe refused/unreachable: {Host}:{Port}", config.Host, config.Port);
-                return false;
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("TCP probe timed out (5s): {Host}:{Port}", config.Host, config.Port);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TCP probe unexpected error: {Host}:{Port}", config.Host, config.Port);
-                return false;
-            }
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = new Timer(
+                async _ => await PerformHeartbeatAsync(),
+                state: null,
+                dueTime:  TimeSpan.FromSeconds(10),
+                period:   TimeSpan.FromSeconds(10));
         }
 
-        /// <summary>
-        /// Start heartbeat monitoring (every 10 seconds)
-        /// </summary>
-        private void StartHeartbeatMonitoring()
+        private void StopHeartbeat()
         {
-            _healthCheckCts = new CancellationTokenSource();
-            _heartbeatTimer = new Timer(async _ => await PerformHeartbeatAsync(), null, 
-                TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
-        }
-
-        /// <summary>
-        /// Stop heartbeat monitoring
-        /// </summary>
-        private void StopHeartbeatMonitoring()
-        {
-            _healthCheckCts?.Cancel();
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = null;
         }
 
         /// <summary>
-        /// Perform heartbeat check
+        /// Heartbeat via reqCurrentTime. Updates LastHeartbeatAt on success.
+        /// Triggers reconnect if the call fails or times out.
+        /// 通过 reqCurrentTime 进行心跳检测。成功时更新 LastHeartbeatAt；失败时触发重连。
         /// </summary>
         private async Task PerformHeartbeatAsync()
         {
+            if (_connectionState.Status != IbkrConnectionStatus.Connected) return;
+
             try
             {
-                if (_connectionState.Status != IbkrConnectionStatus.Connected)
-                {
-                    return;
-                }
-
-                // TODO: Implement actual heartbeat via IPC to Lean engine
-                // Check if Lean engine is still responsive
-                await Task.Delay(100);
-
-                // Update heartbeat timestamp
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _twsClient.RequestCurrentTimeAsync(cts.Token);
                 _connectionState.LastHeartbeatAt = DateTime.UtcNow;
-
-                // Check if heartbeat is stale (more than 30 seconds)
-                if (!_connectionState.IsHealthy && _config?.EnableAutoReconnect == true)
-                {
-                    _logger.LogWarning("Connection lost, initiating reconnect");
-                    _ = Task.Run(async () => await TriggerReconnectAsync());
-                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Heartbeat check failed");
-                if (_config?.EnableAutoReconnect == true)
-                {
-                    _ = Task.Run(async () => await TriggerReconnectAsync());
-                }
+                _logger.LogWarning(ex, "Heartbeat failed  connection may be lost");
+                HandleConnectionLost($"Heartbeat failed: {ex.Message}");
+            }
+        }
+
+        // 
+        // Auto-Reconnect
+        // 
+
+        /// <summary>
+        /// Called when the underlying client detects a disconnection.
+        /// 当底层客户端检测到断线时调用。
+        /// </summary>
+        private void HandleConnectionLost(string reason)
+        {
+            if (_connectionState.Status == IbkrConnectionStatus.Disconnected) return; // intentional disconnect
+            if (_reconnecting) return;
+
+            _logger.LogWarning("Connection lost: {Reason}", reason);
+            RecordError(504, $"Connection lost: {reason}");
+
+            if (_config?.EnableAutoReconnect == true)
+            {
+                _ = Task.Run(TriggerReconnectAsync);
+            }
+            else
+            {
+                UpdateConnectionState(IbkrConnectionStatus.Error, reason);
             }
         }
 
         /// <summary>
-        /// Trigger auto-reconnect with exponential backoff
+        /// Auto-reconnect loop with exponential backoff.
+        /// 带指数退避的自动重连循环。
         /// </summary>
         private async Task TriggerReconnectAsync()
         {
-            if (_connectionState.Status == IbkrConnectionStatus.Reconnecting)
-            {
-                return; // Already reconnecting
-            }
-
+            _reconnecting = true;
+            StopHeartbeat();
             UpdateConnectionState(IbkrConnectionStatus.Reconnecting);
 
-            while (_reconnectAttempts < (_config?.MaxReconnectAttempts ?? 10))
+            int maxAttempts = _config?.MaxReconnectAttempts ?? 10;
+
+            while (_reconnectAttempts < maxAttempts && _reconnecting)
             {
                 _reconnectAttempts++;
 
-                // Calculate exponential backoff: 1s, 2s, 4s, 8s, ... max 60s
-                var delaySeconds = Math.Min(Math.Pow(2, _reconnectAttempts - 1), 60);
-                _connectionState.NextReconnectDelaySeconds = (int)delaySeconds;
+                // Exponential backoff: 1s, 2s, 4s, 8s,  capped at 60s
+                double delaySec = Math.Min(Math.Pow(2, _reconnectAttempts - 1), 60);
+                _connectionState.NextReconnectDelaySeconds = (int)delaySec;
                 OnConnectionStateChanged();
 
-                _logger.LogInformation("Reconnect attempt {Attempt}/{MaxAttempts} in {Delay} seconds",
-                    _reconnectAttempts, _config?.MaxReconnectAttempts, delaySeconds);
+                _logger.LogInformation(
+                    "Auto-reconnect attempt {Attempt}/{Max} in {Delay}s",
+                    _reconnectAttempts, maxAttempts, delaySec);
 
-                await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                await Task.Delay(TimeSpan.FromSeconds(delaySec));
 
-                if (_config != null)
+                if (!_reconnecting || _config == null) break;
+
+                try
                 {
-                    var success = await ConnectAsync(_config);
-                    if (success)
-                    {
-                        _logger.LogInformation("Reconnection successful");
-                        _reconnectAttempts = 0;
-                        return;
-                    }
+                    await _twsClient.ConnectAsync(
+                        _config.Host, _config.Port, _config.ClientId);
+
+                    _connectionState.ConnectedAt    = DateTime.UtcNow;
+                    _connectionState.LastHeartbeatAt = DateTime.UtcNow;
+                    _connectionState.TwsVersion      = _twsClient.ServerVersion.ToString();
+                    _reconnectAttempts = 0;
+                    _reconnecting      = false;
+
+                    UpdateConnectionState(IbkrConnectionStatus.Connected);
+                    StartHeartbeat();
+
+                    _logger.LogInformation(
+                        "Auto-reconnect succeeded (attempt {Attempt})", _reconnectAttempts);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Auto-reconnect attempt {Attempt}/{Max} failed", _reconnectAttempts, maxAttempts);
+                    RecordError(500, $"Reconnect attempt {_reconnectAttempts} failed", ex.Message);
                 }
             }
 
-            _logger.LogError("Max reconnection attempts reached. Giving up.");
-            UpdateConnectionState(IbkrConnectionStatus.Error, "Max reconnection attempts reached");
+            _reconnecting = false;
+            _logger.LogError("All {Max} reconnect attempts exhausted", maxAttempts);
+            UpdateConnectionState(IbkrConnectionStatus.Error, "Max reconnect attempts reached");
         }
 
+        // 
+        // Rate Limiting (IBKR limit: 50 req/s)
+        // 
+
         /// <summary>
-        /// Stop reconnect timer
+        /// Enforce the 50 req/s IBKR rate limit. Waits 1 second if limit is reached.
+        /// 强制执行 IBKR 50 req/s 限制。达到限制时等待 1 秒。
         /// </summary>
-        private void StopReconnectTimer()
+        private async Task RateLimitAsync(CancellationToken ct = default)
         {
-            _reconnectTimer?.Dispose();
-            _reconnectTimer = null;
+            _requestTimestamps.Enqueue(DateTime.UtcNow);
+            if (GetCurrentRequestRate() >= MaxRequestsPerSecond)
+            {
+                _logger.LogDebug("Rate limit reached ({Max} req/s)  throttling 1s", MaxRequestsPerSecond);
+                await Task.Delay(1000, ct);
+            }
         }
 
-        /// <summary>
-        /// Update connection state and raise event
-        /// </summary>
+        private int GetCurrentRequestRate()
+        {
+            var since = DateTime.UtcNow.AddSeconds(-1);
+            return _requestTimestamps.Count(ts => ts > since);
+        }
+
+        private void CleanupOldRequestTimestamps()
+        {
+            var cutoff = DateTime.UtcNow.AddSeconds(-2);
+            while (_requestTimestamps.TryPeek(out var ts) && ts < cutoff)
+                _requestTimestamps.TryDequeue(out _);
+        }
+
+        // 
+        // Helpers
+        // 
+
+        private void EnsureConnected(string operation)
+        {
+            if (_connectionState.Status != IbkrConnectionStatus.Connected)
+                throw new InvalidOperationException(
+                    $"{operation}: not connected to IBKR (status={_connectionState.Status}).");
+        }
+
         private void UpdateConnectionState(IbkrConnectionStatus status, string? error = null)
         {
-            _connectionState.Status = status;
-            _connectionState.LastError = error;
-
+            _connectionState.Status            = status;
+            _connectionState.LastError         = error;
+            _connectionState.ReconnectAttempts = _reconnectAttempts;
             if (status != IbkrConnectionStatus.Reconnecting)
-            {
-                _connectionState.ReconnectAttempts = _reconnectAttempts;
                 _connectionState.NextReconnectDelaySeconds = null;
-            }
-
             OnConnectionStateChanged();
         }
 
-        /// <summary>
-        /// Raise connection state changed event
-        /// </summary>
-        private void OnConnectionStateChanged()
-        {
+        private void OnConnectionStateChanged() =>
             ConnectionStateChanged?.Invoke(this, _connectionState);
-        }
 
-        /// <summary>
-        /// Record an error in history
-        /// </summary>
-        private void RecordError(int errorCode, string message, string? details = null)
+        private void RecordError(int code, string message, string? details = null)
         {
-            var error = new IbkrErrorRecord
+            _errorHistory.Enqueue(new IbkrErrorRecord
             {
                 Timestamp = DateTime.UtcNow,
-                ErrorCode = errorCode,
-                Message = message,
-                Details = details
-            };
-
-            _errorHistory.Enqueue(error);
-
-            // Keep only last 50 errors
+                ErrorCode = code,
+                Message   = message,
+                Details   = details
+            });
+            // Keep only the last 50 errors
             while (_errorHistory.Count > 50)
-            {
                 _errorHistory.TryDequeue(out _);
-            }
         }
 
-        /// <summary>
-        /// Rate limiting: ensure we don't exceed IBKR's 50 requests/second limit
-        /// </summary>
-        private async Task RateLimitAsync()
-        {
-            _requestTimestamps.Enqueue(DateTime.UtcNow);
-
-            var currentRate = GetCurrentRequestRate();
-            if (currentRate >= MaxRequestsPerSecond)
-            {
-                // Wait 1 second before proceeding
-                await Task.Delay(1000);
-            }
-        }
-
-        /// <summary>
-        /// Get current request rate (requests per second)
-        /// </summary>
-        private int GetCurrentRequestRate()
-        {
-            var oneSecondAgo = DateTime.UtcNow.AddSeconds(-1);
-            return _requestTimestamps.Count(ts => ts > oneSecondAgo);
-        }
-
-        /// <summary>
-        /// Cleanup old request timestamps (keep only last 2 seconds)
-        /// </summary>
-        private void CleanupOldRequestTimestamps()
-        {
-            var twoSecondsAgo = DateTime.UtcNow.AddSeconds(-2);
-            while (_requestTimestamps.TryPeek(out var timestamp) && timestamp < twoSecondsAgo)
-            {
-                _requestTimestamps.TryDequeue(out _);
-            }
-        }
-
-        /// <summary>
-        /// Mask account ID for security (show only last 4 characters)
-        /// </summary>
-        private string MaskAccountId(string accountId)
+        private static string MaskAccountId(string accountId)
         {
             if (string.IsNullOrEmpty(accountId) || accountId.Length <= 4)
-            {
                 return "****";
-            }
-
-            return "****" + accountId.Substring(accountId.Length - 4);
+            return "****" + accountId[^4..];
         }
 
         public override void Dispose()
         {
-            StopHeartbeatMonitoring();
-            StopReconnectTimer();
+            StopHeartbeat();
+            _reconnecting = false;
             _connectionLock.Dispose();
-            _healthCheckCts?.Dispose();
             base.Dispose();
         }
     }

@@ -196,39 +196,134 @@ namespace WebUI.Data.Services
         {
             _logger.LogInformation("Getting equity curve for broker account {BrokerAccountId}", brokerAccountId);
 
-            // This is a simplified implementation
-            // In a real implementation, this would query historical equity snapshots from the database
             var account = await _unitOfWork.BrokerAccounts.GetByIdAsync(brokerAccountId, cancellationToken);
-
             if (account == null)
-            {
                 throw new InvalidOperationException($"Broker account {brokerAccountId} not found");
-            }
 
             var positions = await GetPositionsAsync(brokerAccountId, cancellationToken);
-            
-            // For now, return a simple equity curve with current values
-            // TODO: Implement historical equity tracking
-            var response = new EquityCurveResponse
-            {
-                InitialEquity = 100000m, // TODO: Get from account settings
-                CurrentEquity = positions.TotalPortfolioValue,
-                TotalReturn = 0, // TODO: Calculate from historical data
-                MaxDrawdown = 0, // TODO: Calculate from historical data
-                DataPoints = new List<EquityCurvePoint>
-                {
-                    new EquityCurvePoint
-                    {
-                        Date = DateTime.UtcNow,
-                        Equity = positions.TotalPortfolioValue,
-                        Cash = positions.CashBalance,
-                        PositionsValue = positions.TotalMarketValue,
-                        CumulativeReturn = 0 // TODO: Calculate
-                    }
-                }
-            };
+            decimal currentEquity = positions.TotalPortfolioValue;
+            decimal cashBalance = positions.CashBalance;
 
-            return response;
+            // Generate data points from filled orders + current positions
+            var orders = await _unitOfWork.Orders.GetByBrokerAccountIdAsync(brokerAccountId, cancellationToken);
+            var filledOrders = orders
+                .Where(o => o.BrokerAccountId == brokerAccountId && o.Status == "Filled" && (o.FilledAt ?? o.CreatedAt) != default)
+                .OrderBy(o => o.FilledAt ?? o.CreatedAt)
+                .ToList();
+
+            var effectiveStart = startDate ?? (filledOrders.Any()
+                ? (filledOrders.First().FilledAt ?? filledOrders.First().CreatedAt).AddDays(-1)
+                : DateTime.UtcNow.AddMonths(-3));
+            var effectiveEnd = endDate ?? DateTime.UtcNow;
+
+            var dataPoints = new List<EquityCurvePoint>();
+
+            if (!filledOrders.Any())
+            {
+                // No orders — return a flat line showing current equity
+                int days = Math.Max(1, (int)(effectiveEnd - effectiveStart).TotalDays);
+                for (int d = 0; d <= Math.Min(days, 90); d++)
+                {
+                    dataPoints.Add(new EquityCurvePoint
+                    {
+                        Date = effectiveStart.AddDays(d),
+                        Equity = currentEquity,
+                        Cash = cashBalance,
+                        PositionsValue = positions.TotalMarketValue,
+                        CumulativeReturn = 0
+                    });
+                }
+            }
+            else
+            {
+                // Build a daily equity curve from order history
+                // Seed initial capital: estimate from the first buy order's value + cash
+                decimal runningCash = cashBalance + positions.TotalCostBasis; // rough initial capital
+                decimal initialEquity = runningCash;
+                decimal runningPositionsCostBasis = 0;
+
+                // Group orders by date
+                var ordersByDate = filledOrders
+                    .GroupBy(o => (o.FilledAt ?? o.CreatedAt).Date)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                var current = effectiveStart.Date;
+                var end = effectiveEnd.Date;
+
+                while (current <= end)
+                {
+                    if (ordersByDate.TryGetValue(current, out var dayOrders))
+                    {
+                        foreach (var order in dayOrders)
+                        {
+                            decimal fillPrice = order.FilledPrice ?? order.LimitPrice ?? 0;
+                            decimal value = fillPrice * (order.FilledQuantity > 0 ? order.FilledQuantity : order.Quantity);
+                            if (order.Side == "Buy")
+                            {
+                                runningCash -= value;
+                                runningPositionsCostBasis += value;
+                            }
+                            else if (order.Side == "Sell")
+                            {
+                                runningCash += value;
+                                runningPositionsCostBasis = Math.Max(0, runningPositionsCostBasis - value);
+                            }
+                        }
+                    }
+
+                    decimal equity = runningCash + runningPositionsCostBasis;
+                    decimal cumulativeReturn = initialEquity > 0 ? ((equity - initialEquity) / initialEquity) * 100 : 0;
+
+                    // Only add one point per day, skip weekends for cleanliness (optional)
+                    dataPoints.Add(new EquityCurvePoint
+                    {
+                        Date = current,
+                        Equity = Math.Max(equity, 0),
+                        Cash = Math.Max(runningCash, 0),
+                        PositionsValue = Math.Max(runningPositionsCostBasis, 0),
+                        CumulativeReturn = cumulativeReturn
+                    });
+
+                    current = current.AddDays(1);
+                }
+
+                // Correct the last point to use actual current values
+                if (dataPoints.Any())
+                {
+                    var last = dataPoints[^1];
+                    last.Equity = currentEquity;
+                    last.Cash = cashBalance;
+                    last.PositionsValue = positions.TotalMarketValue;
+                    if (initialEquity > 0)
+                        last.CumulativeReturn = ((currentEquity - initialEquity) / initialEquity) * 100;
+                }
+
+                initialEquity = dataPoints.Any() ? dataPoints[0].Equity : currentEquity;
+            }
+
+            decimal maxDrawdown = 0;
+            if (dataPoints.Count > 1)
+            {
+                decimal peak = dataPoints[0].Equity;
+                foreach (var pt in dataPoints)
+                {
+                    if (pt.Equity > peak) peak = pt.Equity;
+                    decimal dd = peak > 0 ? ((pt.Equity - peak) / peak) * 100 : 0;
+                    if (dd < maxDrawdown) maxDrawdown = dd;
+                }
+            }
+
+            decimal initEq = dataPoints.Any() ? dataPoints[0].Equity : currentEquity;
+            decimal totalReturn = initEq > 0 ? ((currentEquity - initEq) / initEq) * 100 : 0;
+
+            return new EquityCurveResponse
+            {
+                DataPoints = dataPoints,
+                InitialEquity = initEq,
+                CurrentEquity = currentEquity,
+                TotalReturn = totalReturn,
+                MaxDrawdown = maxDrawdown
+            };
         }
 
         public async Task UpdatePositionPricesAsync(int brokerAccountId, CancellationToken cancellationToken = default)

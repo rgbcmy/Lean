@@ -49,3 +49,25 @@ export async function disconnectIbkr(): Promise<IbkrConnectionStatus> {
   const response = await apiClient.post<IbkrConnectionStatus>('/api/v1/ibkr/disconnect');
   return response.data;
 }
+
+export interface IbkrSyncResult {
+  success: boolean;
+  positionsSynced: number;
+  positionsAdded: number;
+  positionsUpdated: number;
+  positionsRemoved: number;
+  cashBalance: number;
+  netLiquidation: number;
+  syncedAt: string;
+  message: string;
+}
+
+/**
+ * POST /api/v1/ibkr/sync-positions
+ * Fetch all positions from IBKR TWS and store them in the local database.
+ * 从 IBKR TWS 获取所有持仓并保存到本地数据库
+ */
+export async function syncIbkrPositions(): Promise<IbkrSyncResult> {
+  const response = await apiClient.post<IbkrSyncResult>('/api/v1/ibkr/sync-positions');
+  return response.data;
+}

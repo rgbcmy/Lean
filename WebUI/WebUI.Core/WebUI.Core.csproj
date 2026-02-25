@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Common\QuantConnect.csproj" />
+    <ProjectReference Include="..\IBApi\CSharpAPI.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

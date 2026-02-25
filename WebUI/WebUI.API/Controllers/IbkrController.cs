@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using WebUI.Core.Models;
 using WebUI.Core.Services;
+using WebUI.Data.Services;
 
 namespace WebUI.API.Controllers
 {
@@ -34,13 +35,16 @@ namespace WebUI.API.Controllers
     {
         private readonly ILogger<IbkrController> _logger;
         private readonly IIbkrConnectionService _ibkrConnectionService;
+        private readonly IIbkrPositionSyncService _syncService;
 
         public IbkrController(
             ILogger<IbkrController> logger,
-            IIbkrConnectionService ibkrConnectionService)
+            IIbkrConnectionService ibkrConnectionService,
+            IIbkrPositionSyncService syncService)
         {
             _logger = logger;
             _ibkrConnectionService = ibkrConnectionService;
+            _syncService = syncService;
         }
 
         /// <summary>
@@ -252,6 +256,72 @@ namespace WebUI.API.Controllers
         {
             var diagnostics = _ibkrConnectionService.GetDiagnostics();
             return Ok(diagnostics);
+        }
+
+        /// <summary>
+        /// Sync positions and account data from IBKR into the local database.
+        /// 从 IBKR 同步持仓和账户数据到本地数据库
+        /// </summary>
+        [HttpPost("sync-positions")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status503ServiceUnavailable)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult> SyncPositions(CancellationToken cancellationToken = default)
+        {
+            if (_ibkrConnectionService.ConnectionState.Status != IbkrConnectionStatus.Connected)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = "Not connected to IBKR. Please connect first. / 请先连接 IBKR"
+                });
+            }
+
+            var config = _ibkrConnectionService.CurrentConfig;
+            if (config == null)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = "Connection configuration not available. / 连接配置不可用"
+                });
+            }
+
+            try
+            {
+                _logger.LogInformation("Manual IBKR sync requested for account {AccountId}", config.AccountId);
+                var result = await _syncService.SyncAsync(config, cancellationToken);
+
+                if (result.Success)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        positionsSynced = result.PositionsSynced,
+                        positionsAdded = result.PositionsAdded,
+                        positionsUpdated = result.PositionsUpdated,
+                        positionsRemoved = result.PositionsRemoved,
+                        cashBalance = result.CashBalance,
+                        netLiquidation = result.NetLiquidation,
+                        syncedAt = result.SyncedAt,
+                        message = $"同步成功：{result.PositionsSynced} 个持仓"
+                    });
+                }
+                else
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, new
+                    {
+                        success = false,
+                        message = result.ErrorMessage ?? "同步失败"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during IBKR position sync");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         /// <summary>
